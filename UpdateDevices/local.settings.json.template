@@ -15,6 +15,10 @@
     "AzureAd:TenantId": "",
     "AzureAd:ClientId": "",
     "AzureApp:ClientSecret": "",
-    "GraphEndpoint": ""
+    "GraphEndpoint": "",
+    "EnableStaleDeviceCleanup": "false",
+    "StaleDeviceCleanupDryRun": "true",
+    "StaleDeviceCleanupAction": "Retire",
+    "StaleDeviceCleanupMinInactiveDays": "1"
   }
-} 
+}
