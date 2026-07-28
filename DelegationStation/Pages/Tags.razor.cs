@@ -162,7 +162,7 @@ namespace DelegationStation.Pages
         private async Task AddTag()
         {
             Guid c = Guid.NewGuid();
-            if (authorizationService.AuthorizeAsync(user, "DelegationStationAdmin").Result.Succeeded == false)
+            if ((await authorizationService.AuthorizeAsync(user, "DelegationStationAdmin")).Succeeded == false)
             {
                 userMessage = $"Error: Not authorized to add tags.\nCorrelation Id: {c.ToString()}";
                 logger.LogError($"{userMessage}\nUser: {userName} {userId}");

@@ -369,7 +369,7 @@ namespace DelegationStation.Pages
 
                 DeviceTag tag = deviceTags.First(t => t.Id.ToString() == tagToApply);
 
-                if (authorizationService.AuthorizeAsync(user, tag, Authorization.DeviceTagOperations.BulkUpload).Result.Succeeded == false)
+                if ((await authorizationService.AuthorizeAsync(user, tag, Authorization.DeviceTagOperations.BulkUpload)).Succeeded == false)
                 {
                     var message = $"Error: Unauthorized to apply tag. TagId: {tag.Id}\nCorrelation Id: {c.ToString()}";
                     updateErrors.Add(message);
