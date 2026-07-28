@@ -42,8 +42,9 @@ namespace CorporateIdentifierSync.Services
             }
             if (String.IsNullOrEmpty(connectionString) && String.IsNullOrEmpty(cosmosEndpoint))
             {
-                _logger.DSLogError("Cannot connect to CosmosDB. Must configure COSMOS_CONNECTION_STRING or COSMOS_ENDPOINT", fullMethodName);
-                return;
+                string missingConfigMessage = "Cannot connect to CosmosDB. Must configure COSMOS_CONNECTION_STRING or COSMOS_ENDPOINT";
+                _logger.DSLogError(missingConfigMessage, fullMethodName);
+                throw new Exception(missingConfigMessage);
             }
 
             try
@@ -72,6 +73,7 @@ namespace CorporateIdentifierSync.Services
             catch (Exception ex)
             {
                 _logger.DSLogException("Failed to connect to CosmosDB", ex, fullMethodName);
+                throw;
             }
 
             _logger.DSLogInformation("Connected to Cosmos DB database " + databaseName + " container " + containerName + ".", fullMethodName);
