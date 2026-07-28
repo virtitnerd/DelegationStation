@@ -19,6 +19,20 @@ namespace UpdateDevices
     {
         private int _lastRunDays = 30;
 
+        private bool _enableStaleDeviceCleanup = false;
+        private bool _staleDeviceCleanupDryRun = true;
+        private string _staleDeviceCleanupAction = "Retire";
+        private int _staleDeviceCleanupMinInactiveDays = 1;
+
+        private static readonly string[] _placeholderSerialDenylist = new[]
+        {
+            "To Be Filled By O.E.M.",
+            "System Serial Number",
+            "Default string",
+            "None",
+            "0"
+        };
+
         private readonly ILogger _logger;
         private readonly ICosmosDbService _dbService;
         private readonly IGraphService _graphService;
@@ -42,6 +56,29 @@ namespace UpdateDevices
             {
                 _lastRunDays = 30;
                 _logger.DSLogWarning("FirstRunPastDays environment variable not set. Defaulting to 30 days", fullMethodName);
+            }
+
+            if (!bool.TryParse(Environment.GetEnvironmentVariable("EnableStaleDeviceCleanup", EnvironmentVariableTarget.Process), out _enableStaleDeviceCleanup))
+            {
+                _enableStaleDeviceCleanup = false;
+                _logger.DSLogInformation("EnableStaleDeviceCleanup environment variable not set. Defaulting to disabled.", fullMethodName);
+            }
+
+            if (!bool.TryParse(Environment.GetEnvironmentVariable("StaleDeviceCleanupDryRun", EnvironmentVariableTarget.Process), out _staleDeviceCleanupDryRun))
+            {
+                _staleDeviceCleanupDryRun = true;
+                if (_enableStaleDeviceCleanup)
+                {
+                    _logger.DSLogWarning("StaleDeviceCleanupDryRun environment variable not set. Defaulting to true (log-only).", fullMethodName);
+                }
+            }
+
+            string? staleActionConfig = Environment.GetEnvironmentVariable("StaleDeviceCleanupAction", EnvironmentVariableTarget.Process);
+            _staleDeviceCleanupAction = string.Equals(staleActionConfig, "Delete", StringComparison.OrdinalIgnoreCase) ? "Delete" : "Retire";
+
+            if (!int.TryParse(Environment.GetEnvironmentVariable("StaleDeviceCleanupMinInactiveDays", EnvironmentVariableTarget.Process), out _staleDeviceCleanupMinInactiveDays))
+            {
+                _staleDeviceCleanupMinInactiveDays = 1;
             }
 
         }
@@ -134,6 +171,8 @@ namespace UpdateDevices
                 return;
             }
             _logger.DSLogInformation("Retrieved Entra Object ID '" + deviceObjectID + "' for device. DeviceID: '" + device.AzureADDeviceId + "', ManagedDeviceID: '" + device.Id + "'", fullMethodName);
+
+            await CleanupStaleDevicesOnReimageAsync(device);
 
             foreach (string tagId in d.Tags)
             {
@@ -296,6 +335,80 @@ namespace UpdateDevices
             }
         }
 
+        // Opt-in: detects other ManagedDevice objects sharing this device's Make/Model/Serial that are also
+        // confirmed via MAC address or IMEI/MEID to be the same physical hardware (guards against non-unique
+        // OEM placeholder serials), and retires/deletes them as superseded by this newly-enrolled device.
+        private async Task CleanupStaleDevicesOnReimageAsync(Microsoft.Graph.Models.ManagedDevice device)
+        {
+            string methodName = ExtensionHelper.GetMethodName() ?? "";
+            string className = this.GetType().Name;
+            string fullMethodName = className + "." + methodName;
+
+            if (!_enableStaleDeviceCleanup)
+            {
+                return;
+            }
+
+            if (_placeholderSerialDenylist.Any(p => string.Equals(p, device.SerialNumber, StringComparison.OrdinalIgnoreCase)))
+            {
+                _logger.DSLogInformation("Device " + device.Id + " has a placeholder serial number '" + device.SerialNumber + "'. Skipping stale-device cleanup to avoid false-positive matches.", fullMethodName);
+                return;
+            }
+
+            List<Microsoft.Graph.Models.ManagedDevice> candidates;
+            try
+            {
+                candidates = await _graphService.GetManagedDevicesBySerialAsync(device.Manufacturer, device.Model, device.SerialNumber);
+            }
+            catch (Exception ex)
+            {
+                _logger.DSLogException("Failed to query for stale devices matching device " + device.Id + ".", ex, fullMethodName);
+                return;
+            }
+
+            foreach (Microsoft.Graph.Models.ManagedDevice candidate in candidates.Where(c => c.Id != device.Id))
+            {
+                bool macMatch = (!string.IsNullOrEmpty(device.WiFiMacAddress) && string.Equals(device.WiFiMacAddress, candidate.WiFiMacAddress, StringComparison.OrdinalIgnoreCase))
+                    || (!string.IsNullOrEmpty(device.EthernetMacAddress) && string.Equals(device.EthernetMacAddress, candidate.EthernetMacAddress, StringComparison.OrdinalIgnoreCase));
+                bool imeiMatch = (!string.IsNullOrEmpty(device.Imei) && string.Equals(device.Imei, candidate.Imei, StringComparison.OrdinalIgnoreCase))
+                    || (!string.IsNullOrEmpty(device.Meid) && string.Equals(device.Meid, candidate.Meid, StringComparison.OrdinalIgnoreCase));
+
+                if (!macMatch && !imeiMatch)
+                {
+                    _logger.DSLogInformation("Candidate stale device " + candidate.Id + " shares Serial '" + device.SerialNumber + "' with device " + device.Id + " but no MAC/IMEI/MEID match. Skipping.", fullMethodName);
+                    continue;
+                }
+
+                if (candidate.LastSyncDateTime == null || candidate.LastSyncDateTime.Value.UtcDateTime > DateTime.UtcNow.AddDays(-_staleDeviceCleanupMinInactiveDays))
+                {
+                    _logger.DSLogInformation("Candidate stale device " + candidate.Id + " has synced too recently (or has no LastSyncDateTime) to be considered stale. Skipping.", fullMethodName);
+                    continue;
+                }
+
+                if (_staleDeviceCleanupDryRun)
+                {
+                    _logger.DSLogInformation("[DryRun] Would " + _staleDeviceCleanupAction + " stale device " + candidate.Id + " (matched device " + device.Id + " on Serial '" + device.SerialNumber + "' + " + (macMatch ? "MAC" : "IMEI/MEID") + ", last synced " + candidate.LastSyncDateTime + ").", fullMethodName);
+                    continue;
+                }
+
+                try
+                {
+                    if (_staleDeviceCleanupAction == "Delete")
+                    {
+                        await _graphService.DeleteManagedDeviceAsync(candidate.Id);
+                    }
+                    else
+                    {
+                        await _graphService.RetireManagedDeviceAsync(candidate.Id);
+                    }
+                    _logger.DSLogInformation(_staleDeviceCleanupAction + "d stale device " + candidate.Id + ", superseded by newly-enrolled device " + device.Id + " (Serial '" + device.SerialNumber + "').", fullMethodName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.DSLogException("Failed to " + _staleDeviceCleanupAction + " stale device " + candidate.Id + " superseded by device " + device.Id + ".", ex, fullMethodName);
+                }
+            }
+        }
 
     }
 
