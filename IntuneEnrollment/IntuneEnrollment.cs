@@ -413,6 +413,31 @@ namespace DelegationStation.Function
             return;
         }
 
+        // Host(s) the Log Analytics search-results link is allowed to point at. The access token
+        // requested in GetDeviceIdsFromLogAnalyticsAsync is scoped to this same audience, so allowing
+        // any other host here would mean handing that Bearer token to an attacker-controlled server (SSRF).
+        private static readonly string[] AllowedLogAnalyticsHosts = new[] { "api.loganalytics.io" };
+
+        private static bool IsAllowedLogAnalyticsUri(string logUri)
+        {
+            if (string.IsNullOrWhiteSpace(logUri))
+            {
+                return false;
+            }
+
+            if (!Uri.TryCreate(logUri, UriKind.Absolute, out Uri parsedUri))
+            {
+                return false;
+            }
+
+            if (parsedUri.Scheme != Uri.UriSchemeHttps)
+            {
+                return false;
+            }
+
+            return AllowedLogAnalyticsHosts.Contains(parsedUri.Host, StringComparer.OrdinalIgnoreCase);
+        }
+
         private static string GetLogAnalyticsUri(string requestBody)
         {
             string logAnalyticsRegexPattern = @"\""linkToSearchResultsAPI\"":\s?\""(\S+)\""";
@@ -420,17 +445,19 @@ namespace DelegationStation.Function
             string logUri = "";
             if (logAnalyticsMatch.Success)
             {
-                logUri = logAnalyticsMatch.Groups[1].Value;
-                //FIXME:  Need to sanitize/validate logURI before logging
-                // commenting out for now
-                //_logger.LogInformation($"Log Analytics Uri Used: {logUri}");
+                string candidateUri = logAnalyticsMatch.Groups[1].Value;
+                if (IsAllowedLogAnalyticsUri(candidateUri))
+                {
+                    logUri = candidateUri;
+                }
+                else
+                {
+                    _logger.LogError("Rejected linkToSearchResultsAPI value: not an https URI on an allowed Log Analytics host.");
+                }
             }
             else
             {
-                //FIXME:  Need to santizie/validate logURI before logging
-                // commenting out for now
                 _logger.LogInformation($"Error: Unable to find Log Analytics Uri:\n");
-                //_logger.LogInformation($"Error: Unable to find Log Analytics Uri:\n{requestBody}");
             }
             return logUri;
         }
@@ -441,6 +468,14 @@ namespace DelegationStation.Function
             string methodName = method.Name;
             string className = method.ReflectedType.Name;
             string fullMethodName = className + "." + methodName;
+
+            // Defense in depth: re-validate immediately before the outbound call carries the Bearer
+            // token, in case this method is ever called from a path other than GetLogAnalyticsUri.
+            if (!IsAllowedLogAnalyticsUri(logUri))
+            {
+                _logger.LogError($"{fullMethodName} Error: logUri is empty or not on an allowed Log Analytics host. Refusing to call out.");
+                return null;
+            }
 
             var httpClient = new HttpClient();
 
