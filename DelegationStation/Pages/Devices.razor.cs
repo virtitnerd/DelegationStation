@@ -307,7 +307,6 @@ namespace DelegationStation.Pages
                     tag.Id, tag.Name, tag.DeviceNameRegex, newDevice.SerialNumber);
                 var authRequest = await authorizationService.AuthorizeAsync(user, tag, Authorization.DeviceTagOperations.Read);
                 if (!authRequest.Succeeded)
-                    //if (!authorizationService.AuthorizeAsync(user, tag, Authorization.DeviceTagOperations.Read).Result.Succeeded)
                 {
                     userMessage = (MarkupString)$"Error: Not authorized to add devices to tag {tag.Id} {tag.Name}.\nCorrelation Id: {c.ToString()}";
                     logger.LogError("Authorization failed: User not authorized to add devices to tag {TagId} ({TagName}). CorrelationId: {CorrelationId}, User: {UserName} {UserId}",
@@ -383,6 +382,19 @@ namespace DelegationStation.Pages
             Guid c = Guid.NewGuid();
             if (deleteDevice.Id == Guid.Empty)
             {
+                return;
+            }
+
+            DeviceTag tag = deviceTags.Where(t => deleteDevice.Tags.Contains(t.Id.ToString())).FirstOrDefault() ?? new DeviceTag();
+            var authRequest = await authorizationService.AuthorizeAsync(user, tag, Authorization.DeviceTagOperations.Delete);
+            if (!authRequest.Succeeded)
+            {
+                userMessage = (MarkupString)$"Error: Not authorized to delete devices from tag {tag.Id} {tag.Name}.\nCorrelation Id: {c.ToString()}";
+                logger.LogError("Authorization failed: User not authorized to delete devices from tag {TagId} ({TagName}). CorrelationId: {CorrelationId}, User: {UserName} {UserId}",
+                    tag.Id, tag.Name, c, userName, userId);
+                deleteDevice = new Device() { Id = Guid.Empty };
+                confirmMessage = (MarkupString)"";
+                StateHasChanged();
                 return;
             }
 
