@@ -14,6 +14,9 @@ namespace UpdateDevices.Interfaces
         Task UpdateAttributesOnDeviceAsync(string deviceId, string deviceObjectId, List<DeviceUpdateAction> deviceUpdateActions);
         Task<List<ManagedDevice>> GetNewDeviceManagementObjectsAsync(DateTime dateTime);
         Task<string> GetDeviceObjectID(string azureADDeviceID);
+        Task<List<ManagedDevice>> GetManagedDevicesBySerialAsync(string make, string model, string serial);
+        Task RetireManagedDeviceAsync(string managedDeviceId);
+        Task DeleteManagedDeviceAsync(string managedDeviceId);
 
     }
 }
