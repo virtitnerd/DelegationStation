@@ -13,6 +13,17 @@ namespace IntuneEnrollment
 {
     public class GetNewDevices
     {
+        // Shape of a Graph /v1.0/devices?$filter=...&$select=id response, used to look up a
+        // device's Azure AD object id instead of regex-matching a GUID out of the raw JSON body.
+        private class DirectoryObjectIdEntry
+        {
+            public string id { get; set; }
+        }
+        private class DirectoryObjectIdCollectionResponse
+        {
+            public List<DirectoryObjectIdEntry> value { get; set; }
+        }
+
         private ILogger _logger;
         private static string _guidRegex = "^([0-9A-Fa-f]{8}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{12})$";
         private Microsoft.Azure.Cosmos.Container _container = null;
@@ -353,14 +364,9 @@ namespace IntuneEnrollment
                 HttpResponseMessage deviceADResponse = await httpClient.SendAsync(deviceADRequest);
                 deviceADResponse.EnsureSuccessStatusCode();
                 string deviceADResponseContent = await deviceADResponse.Content.ReadAsStringAsync();
-                Regex regex = new Regex(@"\b[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}\b");
-                string deviceAzureAdObjectId = "";
-                Match deviceMatch = regex.Match(deviceADResponseContent);
-                if (deviceMatch.Success)
-                {
-                    deviceAzureAdObjectId = deviceMatch.Value;
-                }
-                else
+                DirectoryObjectIdCollectionResponse deviceADResponseObject = JsonConvert.DeserializeObject<DirectoryObjectIdCollectionResponse>(deviceADResponseContent);
+                string deviceAzureAdObjectId = deviceADResponseObject?.value?.FirstOrDefault()?.id ?? "";
+                if (string.IsNullOrEmpty(deviceAzureAdObjectId))
                 {
                     _logger.LogError($"{fullMethodName} Error: Could not find Azure AD Object Id for device {deviceId}");
                     return;
@@ -466,14 +472,9 @@ namespace IntuneEnrollment
             HttpResponseMessage deviceADResponse = await httpClient.SendAsync(deviceADRequest);
             deviceADResponse.EnsureSuccessStatusCode();
             string deviceADResponseContent = await deviceADResponse.Content.ReadAsStringAsync();
-            Regex regex = new Regex(@"\b[A-Fa-f0-9]{8}(?:-[A-Fa-f0-9]{4}){3}-[A-Fa-f0-9]{12}\b");
-            string deviceAzureAdObjectId = "";
-            Match deviceMatch = regex.Match(deviceADResponseContent);
-            if (deviceMatch.Success)
-            {
-                deviceAzureAdObjectId = deviceMatch.Value;
-            }
-            else
+            DirectoryObjectIdCollectionResponse deviceADResponseObject = JsonConvert.DeserializeObject<DirectoryObjectIdCollectionResponse>(deviceADResponseContent);
+            string deviceAzureAdObjectId = deviceADResponseObject?.value?.FirstOrDefault()?.id ?? "";
+            if (string.IsNullOrEmpty(deviceAzureAdObjectId))
             {
                 _logger.LogError($"{fullMethodName} Error: Could not find Azure AD Object Id for device {deviceId}");
                 return;
