@@ -104,51 +104,7 @@ namespace DelegationStation.Services
                 return devices;
             }
 
-            //
-            // Retrieve tags that the logged in user can access
-            //
-            List<DeviceTag> deviceTags = new List<DeviceTag>();
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            int argCount = 0;
-
-            // If user is in admin group, they have access to all tags so no need to filter
-            if (groupIds.Contains(_DefaultGroup))
-            {
-                sb.Append("SELECT * FROM t WHERE t.PartitionKey = \"DeviceTag\"");
-            }
-            else
-            {
-                sb.Append("SELECT t.id,t.Name,t.Description,t.RoleDelegations,t.UpdateActions,t.PartitionKey,t.Type FROM t JOIN r IN t.RoleDelegations WHERE t.PartitionKey = \"DeviceTag\" AND (");
-
-                foreach (string groupId in groupIds)
-                {
-                    sb.Append($"CONTAINS(r.SecurityGroupId, @arg{argCount}, true) ");
-                    if (groupId != groupIds.Last())
-                    {
-                        sb.Append("OR ");
-                    }
-                    argCount++;
-                }
-                sb.Append(")");
-            }
-            argCount = 0;
-            QueryDefinition q = new QueryDefinition(sb.ToString());
-
-            if (!groupIds.Contains(_DefaultGroup))
-            {
-                foreach (string groupId in groupIds)
-                {
-                    q.WithParameter($"@arg{argCount}", groupId);
-                    argCount++;
-                }
-            }
-
-            var queryIterator = this._container.GetItemQueryIterator<DeviceTag>(q);
-            while (queryIterator.HasMoreResults)
-            {
-                var response = await queryIterator.ReadNextAsync();
-                deviceTags.AddRange(response.ToList());
-            }
+            List<DeviceTag> deviceTags = await GetAuthorizedDeviceTagsAsync(groupIds);
 
             // If the user has no authorized tags and is not a default group member, return empty
             if (!groupIds.Contains(_DefaultGroup) && deviceTags.Count == 0)
@@ -159,8 +115,8 @@ namespace DelegationStation.Services
             //
             // Build device search query filtered by authorized tags and search criteria
             //
-            sb = new System.Text.StringBuilder();
-            argCount = 0;
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            int argCount = 0;
             int? deviceOSID = null;
             if (searchDevice.OS != null)
             {
@@ -195,7 +151,7 @@ namespace DelegationStation.Services
             sb.Append(" ORDER BY d.ModifiedUTC DESC OFFSET @offset LIMIT @limit");
             
             argCount = 0;
-            q = new QueryDefinition(sb.ToString());
+            QueryDefinition q = new QueryDefinition(sb.ToString());
 
             if (!groupIds.Contains(_DefaultGroup))
             {
@@ -246,58 +202,14 @@ namespace DelegationStation.Services
                 return 0;
             }
 
-            //
-            // Retrieve tags that the logged in user can access
-            //
-            List<DeviceTag> deviceTags = new List<DeviceTag>();
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            int argCount = 0;
-
-            // If user is in admin group, they have access to all tags so no need to filter
-            if (groupIds.Contains(_DefaultGroup))
-            {
-                sb.Append("SELECT * FROM t WHERE t.PartitionKey = \"DeviceTag\"");
-            }
-            else
-            {
-                sb.Append("SELECT t.id,t.Name,t.Description,t.RoleDelegations,t.UpdateActions,t.PartitionKey,t.Type FROM t JOIN r IN t.RoleDelegations WHERE t.PartitionKey = \"DeviceTag\" AND (");
-
-                foreach (string groupId in groupIds)
-                {
-                    sb.Append($"CONTAINS(r.SecurityGroupId, @arg{argCount}, true) ");
-                    if (groupId != groupIds.Last())
-                    {
-                        sb.Append("OR ");
-                    }
-                    argCount++;
-                }
-                sb.Append(")");
-            }
-            argCount = 0;
-            QueryDefinition q = new QueryDefinition(sb.ToString());
-
-            if (!groupIds.Contains(_DefaultGroup))
-            {
-                foreach (string groupId in groupIds)
-                {
-                    q.WithParameter($"@arg{argCount}", groupId);
-                    argCount++;
-                }
-            }
-
-            var queryIterator = this._container.GetItemQueryIterator<DeviceTag>(q);
-            while (queryIterator.HasMoreResults)
-            {
-                var response = await queryIterator.ReadNextAsync();
-                deviceTags.AddRange(response.ToList());
-            }
+            List<DeviceTag> deviceTags = await GetAuthorizedDeviceTagsAsync(groupIds);
 
             // If the user has no authorized tags and is not a default group member, return empty
             if (!groupIds.Contains(_DefaultGroup) && deviceTags.Count == 0)
             {
                 return 0;
             }
-            argCount = 0;
+            int argCount = 0;
             var queryBuilder = new System.Text.StringBuilder();
             if (groupIds.Contains(_DefaultGroup))
             {
@@ -329,7 +241,7 @@ namespace DelegationStation.Services
                 deviceStatusID = (int)searchDevice.Status;
             }
             queryBuilder.Append(BuildDeviceSearchWhereClause(searchDevice.Make, searchDevice.Model, searchDevice.SerialNumber, deviceOSID, searchDevice.PreferredHostname, searchDevice.Tags, deviceStatusID));
-            q = new QueryDefinition(queryBuilder.ToString());
+            QueryDefinition q = new QueryDefinition(queryBuilder.ToString());
             argCount = 0;
             if (!groupIds.Contains(_DefaultGroup))
             {
@@ -409,6 +321,63 @@ namespace DelegationStation.Services
 
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Retrieves the DeviceTags the given groupIds can access: all tags if the caller is in
+        /// the default admin group, otherwise only tags with a RoleDelegation matching one of the
+        /// supplied group IDs. Shared by GetDevicesSearchAsync, GetDeviceSearchCountAsync, and
+        /// GetDevicesAsync -- callers are responsible for their own empty-result handling, since
+        /// GetDevicesAsync's "no tags" check doesn't special-case the admin group the way the other
+        /// two do.
+        /// </summary>
+        private async Task<List<DeviceTag>> GetAuthorizedDeviceTagsAsync(IEnumerable<string> groupIds)
+        {
+            List<DeviceTag> deviceTags = new List<DeviceTag>();
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            int argCount = 0;
+
+            // If user is in admin group, they have access to all tags so no need to filter
+            if (groupIds.Contains(_DefaultGroup))
+            {
+                sb.Append("SELECT * FROM t WHERE t.PartitionKey = \"DeviceTag\"");
+            }
+            else
+            {
+                sb.Append("SELECT t.id,t.Name,t.Description,t.RoleDelegations,t.UpdateActions,t.PartitionKey,t.Type FROM t JOIN r IN t.RoleDelegations WHERE t.PartitionKey = \"DeviceTag\" AND (");
+
+                foreach (string groupId in groupIds)
+                {
+                    sb.Append($"CONTAINS(r.SecurityGroupId, @arg{argCount}, true) ");
+                    if (groupId != groupIds.Last())
+                    {
+                        sb.Append("OR ");
+                    }
+                    argCount++;
+                }
+                sb.Append(")");
+            }
+
+            argCount = 0;
+            QueryDefinition q = new QueryDefinition(sb.ToString());
+
+            if (!groupIds.Contains(_DefaultGroup))
+            {
+                foreach (string groupId in groupIds)
+                {
+                    q.WithParameter($"@arg{argCount}", groupId);
+                    argCount++;
+                }
+            }
+
+            var queryIterator = this._container.GetItemQueryIterator<DeviceTag>(q);
+            while (queryIterator.HasMoreResults)
+            {
+                var response = await queryIterator.ReadNextAsync();
+                deviceTags.AddRange(response.ToList());
+            }
+
+            return deviceTags;
         }
 
         public async Task<List<Device>> GetDevicesByTagAsync(string tagId)
@@ -544,52 +513,7 @@ namespace DelegationStation.Services
                 return devices;
             }
 
-            //
-            // Retrieve tags that the logged in user can access
-            //
-            List<DeviceTag> deviceTags = new List<DeviceTag>();
-            System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            int argCount = 0;
-
-            // If user is in admin gropu, they have access to all tags so no need to filter
-            if (groupIds.Contains(_DefaultGroup))
-            {
-                sb.Append("SELECT * FROM t WHERE t.PartitionKey = \"DeviceTag\"");
-            }
-            else
-            {
-                sb.Append("SELECT t.id,t.Name,t.Description,t.RoleDelegations,t.UpdateActions,t.PartitionKey,t.Type FROM t JOIN r IN t.RoleDelegations WHERE t.PartitionKey = \"DeviceTag\" AND (");
-
-                foreach (string groupId in groupIds)
-                {
-                    sb.Append($"CONTAINS(r.SecurityGroupId, @arg{argCount}, true) ");
-                    if (groupId != groupIds.Last())
-                    {
-                        sb.Append("OR ");
-                    }
-                    argCount++;
-                }
-                sb.Append(")");
-            }
-
-            argCount = 0;
-            QueryDefinition q = new QueryDefinition(sb.ToString());
-
-            if (!groupIds.Contains(_DefaultGroup))
-            {
-                foreach (string groupId in groupIds)
-                {
-                    q.WithParameter($"@arg{argCount}", groupId);
-                    argCount++;
-                }
-            }
-
-            var queryIterator = this._container.GetItemQueryIterator<DeviceTag>(q);
-            while (queryIterator.HasMoreResults)
-            {
-                var response = await queryIterator.ReadNextAsync();
-                deviceTags.AddRange(response.ToList());
-            }
+            List<DeviceTag> deviceTags = await GetAuthorizedDeviceTagsAsync(groupIds);
 
             // If user doesn't have access to any tags, just return empty device list
             if (deviceTags.Count < 1)
@@ -600,8 +524,8 @@ namespace DelegationStation.Services
             //
             // Now retrieving matching devices in the tags the user has access to
             //
-            sb = new System.Text.StringBuilder();
-            argCount = 0;
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
+            int argCount = 0;
 
             if (groupIds.Contains(_DefaultGroup))
             {
@@ -626,7 +550,7 @@ namespace DelegationStation.Services
 
 
             argCount = 0;
-            q = new QueryDefinition(sb.ToString());
+            QueryDefinition q = new QueryDefinition(sb.ToString());
 
             if (!groupIds.Contains(_DefaultGroup))
             {
