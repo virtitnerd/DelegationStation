@@ -2,6 +2,7 @@ using DelegationStation.Shared;
 using DelegationStationShared.Enums;
 using DelegationStationShared.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Forms;
@@ -25,6 +26,16 @@ namespace DelegationStation.Pages
         private ConfirmMessage? ConfirmSave;
 
         private DeviceTag _tag = new DeviceTag();
+
+        // Cached authorization results for _tag, recomputed via RefreshPermissionCacheAsync whenever
+        // _tag is (re)loaded or reassigned. ActionAllowed/AttributeAllowed are called directly from
+        // render markup (@if expressions), which cannot await -- these fields let those checks stay
+        // synchronous without blocking on AuthorizeAsync().Result on every render.
+        private bool _canUpdateTag;
+        private bool _canUpdateSecurityGroups;
+        private bool _canUpdateAdministrativeUnits;
+        private bool _canUpdateAnyAttributes;
+        private Dictionary<AllowedAttributes, bool> _attributePermissions = new Dictionary<AllowedAttributes, bool>();
 
         private List<string> groups = new List<string>();
         private List<Role> roles = new List<Role>();
@@ -163,7 +174,7 @@ namespace DelegationStation.Pages
                         return;
                     }
 
-                    if (!authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.Read).Result.Succeeded)
+                    if (!(await authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.Read)).Succeeded)
                     {
                         var message = $"User {userName} {userId} is not authorized to read Device Tag {Id}.\nCorrelation Id: {c.ToString()}";
                         tagErrorMessage = message;
@@ -174,6 +185,7 @@ namespace DelegationStation.Pages
                     {
                         roleDelegation.Role = await roleDBService.GetRoleAsync(roleDelegation.Role.Id.ToString());
                     }
+                    await RefreshPermissionCacheAsync();
                 }
             }
             catch (Exception ex)
@@ -185,24 +197,62 @@ namespace DelegationStation.Pages
             StateHasChanged();
         }
 
+        // Recomputes the cached authorization fields for the current _tag. Must be called (and
+        // awaited) after every point _tag is loaded or reassigned -- see the three call sites in
+        // GetTag() and SaveTag().
+        private async Task RefreshPermissionCacheAsync()
+        {
+            _canUpdateTag = (await authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.Update)).Succeeded;
+            _canUpdateSecurityGroups = (await authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateSecurityGroups)).Succeeded;
+            _canUpdateAdministrativeUnits = (await authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateAdministrativeUnits)).Succeeded;
+            _canUpdateAnyAttributes = (await authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateAttributes)).Succeeded;
+
+            _attributePermissions.Clear();
+            foreach (AllowedAttributes attr in Enum.GetValues(typeof(AllowedAttributes)))
+            {
+                OperationAuthorizationRequirement? requirement = attr switch
+                {
+                    AllowedAttributes.All => Authorization.DeviceTagOperations.UpdateAllAttributes,
+                    AllowedAttributes.ExtensionAttribute1 => Authorization.DeviceTagOperations.UpdateExtensionAttribute1,
+                    AllowedAttributes.ExtensionAttribute2 => Authorization.DeviceTagOperations.UpdateExtensionAttribute2,
+                    AllowedAttributes.ExtensionAttribute3 => Authorization.DeviceTagOperations.UpdateExtensionAttribute3,
+                    AllowedAttributes.ExtensionAttribute4 => Authorization.DeviceTagOperations.UpdateExtensionAttribute4,
+                    AllowedAttributes.ExtensionAttribute5 => Authorization.DeviceTagOperations.UpdateExtensionAttribute5,
+                    AllowedAttributes.ExtensionAttribute6 => Authorization.DeviceTagOperations.UpdateExtensionAttribute6,
+                    AllowedAttributes.ExtensionAttribute7 => Authorization.DeviceTagOperations.UpdateExtensionAttribute7,
+                    AllowedAttributes.ExtensionAttribute8 => Authorization.DeviceTagOperations.UpdateExtensionAttribute8,
+                    AllowedAttributes.ExtensionAttribute9 => Authorization.DeviceTagOperations.UpdateExtensionAttribute9,
+                    AllowedAttributes.ExtensionAttribute10 => Authorization.DeviceTagOperations.UpdateExtensionAttribute10,
+                    AllowedAttributes.ExtensionAttribute11 => Authorization.DeviceTagOperations.UpdateExtensionAttribute11,
+                    AllowedAttributes.ExtensionAttribute12 => Authorization.DeviceTagOperations.UpdateExtensionAttribute12,
+                    AllowedAttributes.ExtensionAttribute13 => Authorization.DeviceTagOperations.UpdateExtensionAttribute13,
+                    AllowedAttributes.ExtensionAttribute14 => Authorization.DeviceTagOperations.UpdateExtensionAttribute14,
+                    AllowedAttributes.ExtensionAttribute15 => Authorization.DeviceTagOperations.UpdateExtensionAttribute15,
+                    _ => null
+                };
+
+                _attributePermissions[attr] = requirement != null && (await authorizationService.AuthorizeAsync(user, _tag, requirement)).Succeeded;
+            }
+        }
+
         private bool ActionAllowed(DeviceUpdateAction action)
         {
             Guid c = Guid.NewGuid();
             userMessage = string.Empty;
 
-            if (authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.Update).Result.Succeeded)
+            if (_canUpdateTag)
             {
                 return true;
             }
 
             if (action.ActionType == DeviceUpdateActionType.Group)
             {
-                return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateSecurityGroups).Result.Succeeded;
+                return _canUpdateSecurityGroups;
             }
 
             if (action.ActionType == DeviceUpdateActionType.AdministrativeUnit)
             {
-                return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateAdministrativeUnits).Result.Succeeded;
+                return _canUpdateAdministrativeUnits;
             }
 
             if (action.ActionType == DeviceUpdateActionType.Attribute)
@@ -227,43 +277,7 @@ namespace DelegationStation.Pages
 
         private bool AttributeAllowed(AllowedAttributes e)
         {
-            switch (e)
-            {
-                case AllowedAttributes.All:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateAllAttributes).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute1:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute1).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute2:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute2).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute3:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute3).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute4:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute4).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute5:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute5).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute6:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute6).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute7:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute7).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute8:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute8).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute9:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute9).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute10:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute10).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute11:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute11).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute12:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute12).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute13:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute13).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute14:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute14).Result.Succeeded;
-                case AllowedAttributes.ExtensionAttribute15:
-                    return authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateExtensionAttribute15).Result.Succeeded;
-                default:
-                    return false;
-            }
+            return _attributePermissions.TryGetValue(e, out bool allowed) && allowed;
         }
 
         private async Task GetRoleDelegationName(EventArgs? e)
@@ -336,7 +350,7 @@ namespace DelegationStation.Pages
             userMessage = string.Empty;
 
             addRoleMessage = "";
-            if (authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.Update).Result.Succeeded == false)
+            if (_canUpdateTag == false)
             {
                 var message = $"Error: '{userName}' {userId} attempted to update Tag '{tag.Name}' {tag.Id} without Admin rights.\nCorrelation Id: {c.ToString()}";
                 addRoleMessage = message;
@@ -499,9 +513,9 @@ namespace DelegationStation.Pages
             }
 
             // If the user is not authorized
-            if (authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateSecurityGroups).Result.Succeeded == false &&
-                   authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateAdministrativeUnits).Result.Succeeded == false &&
-                   authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateAttributes).Result.Succeeded == false)
+            if (_canUpdateSecurityGroups == false &&
+                   _canUpdateAdministrativeUnits == false &&
+                   _canUpdateAnyAttributes == false)
             {
                 tag = _tag.DeepCopyKeepId();
                 var message = $"Error: '{userName}' {userId} is not authorized to save Tag {tag.Name} {tag.Id}.\nCorrelation Id:{g.ToString()}";
@@ -512,7 +526,7 @@ namespace DelegationStation.Pages
             }
 
             // Update everything if user is an admin
-            if (authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.Update).Result.Succeeded)
+            if (_canUpdateTag)
             {
                 try
                 {
@@ -520,6 +534,7 @@ namespace DelegationStation.Pages
                     _tag.Modified = DateTime.UtcNow;
                     _tag.ModifiedBy = userId;
                     await deviceTagDBService.AddOrUpdateDeviceTagAsync(_tag);
+                    await RefreshPermissionCacheAsync();
                     var message = $"Success: '{userName}' {userId} saved Tag '{tag.Name}' {tag.Id}\nCorrelation Id:{g.ToString()}";
                     tagSuccessMessage = message;
                     tagErrorMessage = "";
@@ -539,7 +554,7 @@ namespace DelegationStation.Pages
             // Parse the user role to identify the activities they can perform
             // No updates to _tag delegation
             // User can update Attributes
-            if (authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateAttributes).Result.Succeeded)
+            if (_canUpdateAnyAttributes)
             {
                 foreach (AllowedAttributes attribute in Enum.GetValues(typeof(AllowedAttributes)))
                 {
@@ -562,7 +577,7 @@ namespace DelegationStation.Pages
             }
 
             // User can update Groups
-            if (authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateSecurityGroups).Result.Succeeded)
+            if (_canUpdateSecurityGroups)
             {
                 List<DeviceUpdateAction> groupActions = tag.UpdateActions.Where(a => a.ActionType == DeviceUpdateActionType.Group).ToList();
                 _tag.UpdateActions.RemoveAll(a => a.ActionType == DeviceUpdateActionType.Group);
@@ -571,7 +586,7 @@ namespace DelegationStation.Pages
             }
 
             // User can update Administrative Units
-            if (authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.UpdateAdministrativeUnits).Result.Succeeded)
+            if (_canUpdateAdministrativeUnits)
             {
                 List<DeviceUpdateAction> administrativeUnitActions = tag.UpdateActions.Where(a => a.ActionType == DeviceUpdateActionType.AdministrativeUnit).ToList();
                 _tag.UpdateActions.RemoveAll(a => a.ActionType == DeviceUpdateActionType.AdministrativeUnit);
@@ -584,6 +599,7 @@ namespace DelegationStation.Pages
                 _tag.Modified = DateTime.UtcNow;
                 _tag.ModifiedBy = userId;
                 _tag = await deviceTagDBService.AddOrUpdateDeviceTagAsync(_tag);
+                await RefreshPermissionCacheAsync();
                 var message = $"Success: '{userName}' {userId} saved Tag '{tag.Name}' {tag.Id}.\nCorrelation Id:{g.ToString()}";
                 tagSuccessMessage = message;
                 tagErrorMessage = "";
@@ -628,7 +644,7 @@ namespace DelegationStation.Pages
             StateHasChanged();
 
             // Check if user is an admin and only then delete the tag
-            if (authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.Delete).Result.Succeeded)
+            if ((await authorizationService.AuthorizeAsync(user, _tag, Authorization.DeviceTagOperations.Delete)).Succeeded)
             {
                 try
                 {
