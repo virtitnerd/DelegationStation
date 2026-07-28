@@ -1,11 +1,11 @@
 //
-//  This stored procedure looks for older stragglers that never reached max 
+//  This stored procedure looks for older stragglers that never reached max
 //  attempts and bumps up the UD Attempt count so that they will be picked up
 //  by StragglerHandler function.
 //
 //  The scenario where this is needed is:
 //  UpdatedDevices is run manually to ensure pickup of devices enrolled earlier.
-//  Stragglers will have entries created, but they won't get processed by 
+//  Stragglers will have entries created, but they won't get processed by
 //  UpdateDevices again without manual intervention.
 //  This script prevents requiring additional manual runs of UpdateDevices.
 //
@@ -13,30 +13,40 @@
 //  BEFORE RUNNING:
 //  Update EnrollmentDateTime value
 //
+//  maxAttempts should match the UpdateDevices Function App's MaxUpdateDeviceAttempts
+//  setting (default 5). This runs as a Cosmos DB stored procedure, which has no
+//  access to the Function App's environment variables, so the value can't be read
+//  automatically -- pass it explicitly if MaxUpdateDeviceAttempts has been changed
+//  from its default. Defaults to 5 if omitted.
+//
 
-function speedUpOldStragglers() {
-    var collection = getContext().getCollection();
+function speedUpOldStragglers(maxAttempts) {
+    if (typeof maxAttempts === 'undefined') {
+        maxAttempts = 5;
+    }
+
+    var collection = getContext().getCollection();
 
     // Filtered Query
     var filterQuery =
     {
-        'query' : 'SELECT * from Stragglers s where s.EnrollmentDateTime<"2025-04-02T00:00:00" AND s.UDAttemptCount<5'
+        'query' : 'SELECT * from Stragglers s where s.EnrollmentDateTime<"2025-04-02T00:00:00" AND s.UDAttemptCount<' + maxAttempts
     };
 
     // Query documents and take 1st item.
-    var isAccepted = collection.queryDocuments(
+    var isAccepted = collection.queryDocuments(
         collection.getSelfLink(),
         filterQuery,
-        function (err, feed, options) {
-            if (err) throw err;
+        function (err, feed, options) {
+            if (err) throw err;
 
-            // Check the feed and if empty, set the body to 'no docs found', 
+            // Check the feed and if empty, set the body to 'no docs found',
             // else take 1st element from feed
-            if (!feed || !feed.length) {
-                var response = getContext().getResponse();
+            if (!feed || !feed.length) {
+                var response = getContext().getResponse();
                 response.setBody('no docs found');
             }
-            else {
+            else {
 
                 var output = "";
                 var updatedItemCount = 0;
@@ -47,8 +57,8 @@ function speedUpOldStragglers() {
                 });
 
 
-                var response = getContext().getResponse();
-                //var body = { prefix: prefix, feed: feed[0] };
+                var response = getContext().getResponse();
+                //var body = { prefix: prefix, feed: feed[0] };
                 //response.setBody(JSON.stringify(body));
                 var body = "Total Updated: " + updatedItemCount + "/n\n" + output;
                 response.setBody(body);
@@ -56,11 +66,11 @@ function speedUpOldStragglers() {
         }
     );
 
-    if (!isAccepted) throw new Error('The query was not accepted by the server.');
+    if (!isAccepted) throw new Error('The query was not accepted by the server.');
 
     function updateCount(straggler)
     {
-        straggler.UDAttemptCount = 5;
+        straggler.UDAttemptCount = maxAttempts;
 
         var accept = collection.replaceDocument(straggler._self, straggler,
             function(err, itemReplaced) {
