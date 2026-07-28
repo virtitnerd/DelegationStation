@@ -222,6 +222,15 @@ namespace IntuneEnrollment
                 _logger.LogInformation($"{fullMethodName} DefaultActionDisable environment variable not set. Defaulting to false");
             }
 
+            // Intune has not finished reporting hardware info for this device yet -- Manufacturer/Model/SerialNumber
+            // can be null. UpdateDevices.cs handles this same scenario by routing to a Straggler list for retry;
+            // that infrastructure doesn't exist in this project, so just skip and log rather than NRE on .Trim().
+            if (String.IsNullOrEmpty(device.manufacturer) || String.IsNullOrEmpty(device.model) || String.IsNullOrEmpty(device.serialNumber))
+            {
+                _logger.LogWarning($"{fullMethodName} Warning: Device {device.id} does not have Manufacturer, Model, or Serial Number yet. Skipping.");
+                return;
+            }
+
             CosmosClient client = new(
                 connectionString: connectionString
             );
