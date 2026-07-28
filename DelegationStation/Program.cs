@@ -86,6 +86,7 @@ builder.Services.AddSingleton<IReleaseNotesService, ReleaseNotesService>();
 builder.Services.AddSingleton<IFaqService, FaqService>();
 builder.Services.AddSingleton<IMaintenanceBannerService, MaintenanceBannerService>();
 builder.Services.AddSingleton<IAuthorizationHandler, DeviceTagAuthorizationHandler>();
+builder.Services.AddSingleton<ICosmosContainerFactory, CosmosContainerFactory>();
 builder.Services.AddSingleton<IDeviceTagDBService, DeviceTagDBService>();
 builder.Services.AddSingleton<IDeviceDBService, DeviceDBService>();
 builder.Services.AddSingleton<IGraphService, GraphService>();
@@ -96,6 +97,12 @@ builder.Services.AddApplicationInsightsTelemetry(opt =>
     opt.ConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]);
 
 var app = builder.Build();
+
+// Ensure the Cosmos database/container exist before any request is served. Previously each
+// *DBService did this independently as async void (fire and forget, exceptions unobservable);
+// now it's one awaited call, so a real config/connectivity problem fails startup with the
+// actual error instead of surfacing later as an unrelated query failure.
+await app.Services.GetRequiredService<ICosmosContainerFactory>().InitializeAsync();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
