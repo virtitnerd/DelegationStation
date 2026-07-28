@@ -13,9 +13,9 @@ namespace IntuneEnrollment
 {
     public class GetNewDevices
     {
-        private static ILogger _logger;
+        private ILogger _logger;
         private static string _guidRegex = "^([0-9A-Fa-f]{8}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{12})$";
-        private static Microsoft.Azure.Cosmos.Container _container = null;
+        private Microsoft.Azure.Cosmos.Container _container = null;
 
         [FunctionName("GetNewDevices")]
         public async Task Run([TimerTrigger("%TriggerTime%")]TimerInfo myTimer, ILogger log)
@@ -52,7 +52,7 @@ namespace IntuneEnrollment
             await UpdateFunctionSettings();
         }
 
-        private static async Task<List<DelegationStationShared.Models.Graph.ManagedDevice>> GetNewDeviceManagementObjectsAsync(DateTime dateTime)
+        private async Task<List<DelegationStationShared.Models.Graph.ManagedDevice>> GetNewDeviceManagementObjectsAsync(DateTime dateTime)
         {
             MethodBase method = System.Reflection.MethodBase.GetCurrentMethod();
             string methodName = method.Name;
@@ -111,7 +111,7 @@ namespace IntuneEnrollment
             return devices;
         }
 
-        private static async Task<FunctionSettings> GetFunctionSettings()
+        private async Task<FunctionSettings> GetFunctionSettings()
         {
             MethodBase method = System.Reflection.MethodBase.GetCurrentMethod();
             string methodName = method.Name;
@@ -144,7 +144,7 @@ namespace IntuneEnrollment
             return settings;
         }
 
-        private static async Task UpdateFunctionSettings()
+        private async Task UpdateFunctionSettings()
         {
             MethodBase method = System.Reflection.MethodBase.GetCurrentMethod();
             string methodName = method.Name;
@@ -162,7 +162,7 @@ namespace IntuneEnrollment
                 _logger.LogError($"{fullMethodName} Error: {ex.Message}");
             }
         }
-        private static void ConnectToCosmosDb()
+        private void ConnectToCosmosDb()
         {
             var databaseName = "DelegationStation";
             var containerName = "DeviceData";
@@ -196,7 +196,7 @@ namespace IntuneEnrollment
             }
             
         }
-        private static async Task RunDeviceUpdateActionsAsync(DelegationStationShared.Models.Graph.ManagedDevice device)
+        private async Task RunDeviceUpdateActionsAsync(DelegationStationShared.Models.Graph.ManagedDevice device)
         {
             List<DeviceUpdateAction> actions = new List<DeviceUpdateAction>();
             var databaseName = "DelegationStation";
@@ -291,7 +291,7 @@ namespace IntuneEnrollment
             }
         }
 
-        private static async Task AddDeviceToAzureADGroup(string deviceId, string groupId)
+        private async Task AddDeviceToAzureADGroup(string deviceId, string groupId)
         {
             MethodBase method = System.Reflection.MethodBase.GetCurrentMethod();
             string methodName = method.Name;
@@ -402,7 +402,7 @@ namespace IntuneEnrollment
             }
         }
 
-        private static async Task AddDeviceToAzureAdministrativeUnit(string deviceId, string auId)
+        private async Task AddDeviceToAzureAdministrativeUnit(string deviceId, string auId)
         {
             MethodBase method = System.Reflection.MethodBase.GetCurrentMethod();
             string methodName = method.Name;
@@ -513,7 +513,7 @@ namespace IntuneEnrollment
         }
 
 
-        private static async Task UpdateAttributesOnDeviceAsync(string deviceId, List<DeviceUpdateAction> updateActions)
+        private async Task UpdateAttributesOnDeviceAsync(string deviceId, List<DeviceUpdateAction> updateActions)
         {
             MethodBase method = System.Reflection.MethodBase.GetCurrentMethod();
             string methodName = method.Name;
@@ -779,7 +779,7 @@ namespace IntuneEnrollment
 
 
 
-        private static async Task<String> GetAccessTokenAsync(string uri)
+        private async Task<String> GetAccessTokenAsync(string uri)
         {
             MethodBase method = System.Reflection.MethodBase.GetCurrentMethod();
             string methodName = method.Name;
