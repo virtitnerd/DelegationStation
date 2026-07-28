@@ -200,7 +200,7 @@ namespace IntuneEnrollment
         {
             List<DeviceUpdateAction> actions = new List<DeviceUpdateAction>();
             var databaseName = "DelegationStation";
-            var containerName = "Device";
+            var containerName = "DeviceData";
             var connectionString = Environment.GetEnvironmentVariable("COSMOS_CONNECTION_STRING", EnvironmentVariableTarget.Process);
             var defaultActionDisable = Environment.GetEnvironmentVariable("DefaultActionDisable", EnvironmentVariableTarget.Process);
 
