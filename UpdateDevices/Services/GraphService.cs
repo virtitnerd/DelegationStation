@@ -249,7 +249,7 @@ namespace UpdateDevices.Services
                 var managedDevices = await _graphClient.DeviceManagement.ManagedDevices
                     .GetAsync((requestConfiguration) =>
                     {
-                        requestConfiguration.QueryParameters.Select = [ "id", "manufacturer", "model", "serialNumber", "azureADDeviceId", "userPrincipalName", "enrolledDateTime" ];
+                        requestConfiguration.QueryParameters.Select = [ "id", "manufacturer", "model", "serialNumber", "azureADDeviceId", "userPrincipalName", "enrolledDateTime", "wiFiMacAddress", "ethernetMacAddress", "imei", "meid", "lastSyncDateTime" ];
                         requestConfiguration.QueryParameters.Filter = $"enrolledDateTime ge {dateTime.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")}";
                     });
 
