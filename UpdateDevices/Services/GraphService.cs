@@ -345,7 +345,7 @@ namespace UpdateDevices.Services
             {
                 var devices = await _graphClient.DeviceManagement.ManagedDevices.GetAsync((requestConfiguration) =>
                 {
-                    requestConfiguration.QueryParameters.Filter = $"(manufacturer eq '{make}' and model eq '{model}' and serialNumber eq '{serialNum}')";
+                    requestConfiguration.QueryParameters.Filter = $"(manufacturer eq '{ExtensionHelper.EscapeODataFilterValue(make)}' and model eq '{ExtensionHelper.EscapeODataFilterValue(model)}' and serialNumber eq '{ExtensionHelper.EscapeODataFilterValue(serialNum)}')";
                 });
                 if (devices == null)
                 {
