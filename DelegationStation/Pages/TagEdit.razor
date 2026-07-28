@@ -123,7 +123,7 @@
                                             <td>@r.Role.Name</td>
                                             <td>@r.SecurityGroupName</td>
                                             <td>@r.SecurityGroupId</td>
-                                            <td><button type="button" class="btn btn-danger @(authorizationService.AuthorizeAsync(authContext.User, _tag, Authorization.DeviceTagOperations.Update).Result.Succeeded ? "" : "disabled")" @onclick=@(() => tag.RoleDelegations.Remove(r))><span class="oi oi-trash"></span> Delete</button></td>
+                                            <td><button type="button" class="btn btn-danger @(_canUpdateTag ? "" : "disabled")" @onclick=@(() => tag.RoleDelegations.Remove(r))><span class="oi oi-trash"></span> Delete</button></td>
                                         </tr>
                                     }
                                 </tbody>
@@ -429,7 +429,7 @@
                 <DisplayMessage Message=@securityGroupSearchMessage />
 
                         <button id="SaveButton" class="btn btn-success" type="submit">Save</button>
-                        <button id="DeleteButton" type="button" class="btn btn-danger @(authorizationService.AuthorizeAsync(authContext.User, _tag, Authorization.DeviceTagOperations.Update).Result.Succeeded ? "" : "disabled")" @onclick=@(() => ConfirmDeleteTag())>Delete</button>
+                        <button id="DeleteButton" type="button" class="btn btn-danger @(_canUpdateTag ? "" : "disabled")" @onclick=@(() => ConfirmDeleteTag())>Delete</button>
                         <button class="btn btn-secondary" type="button" @onclick=@(() => nav.NavigateTo("/Tags"))>Exit</button>
                     </Authorized>
                     <NotAuthorized>
