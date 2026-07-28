@@ -90,7 +90,6 @@ namespace DelegationStation.Services
             }
 
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            int argCount = 0;
 
             if (groupIds.Contains(_DefaultGroup))
             {
@@ -103,16 +102,7 @@ namespace DelegationStation.Services
             else
             {
                 sb.Append("SELECT DISTINCT t.id,t.Name,t.Description,t.RoleDelegations,t.UpdateActions,t.PartitionKey,t.Type FROM t JOIN r IN t.RoleDelegations WHERE t.PartitionKey = \"DeviceTag\" AND (");
-
-                foreach (string groupId in groupIds)
-                {
-                    sb.Append($"CONTAINS(r.SecurityGroupId, @arg{argCount}, true) ");
-                    if (groupId != groupIds.Last())
-                    {
-                        sb.Append("OR ");
-                    }
-                    argCount++;
-                }
+                sb.Append(BuildGroupIdContainsClause(groupIds));
                 if (!string.IsNullOrEmpty(name))
                 {
                     sb.Append($" AND CONTAINS(t.Name, @name, true)");
@@ -123,16 +113,11 @@ namespace DelegationStation.Services
             sb.Append($" OFFSET {(pageNumber - 1) * pageSize} LIMIT {pageSize}");
 
 
-            argCount = 0;
             QueryDefinition q = new QueryDefinition(sb.ToString());
 
             if (!groupIds.Contains(_DefaultGroup))
             {
-                foreach (string groupId in groupIds)
-                {
-                    q.WithParameter($"@arg{argCount}", groupId);
-                    argCount++;
-                }
+                BindGroupIdParameters(q, groupIds);
             }
             if (!string.IsNullOrEmpty(name))
             {
@@ -167,7 +152,6 @@ namespace DelegationStation.Services
             }
 
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            int argCount = 0;
 
             if (groupIds.Contains(_DefaultGroup))
             {
@@ -180,36 +164,22 @@ namespace DelegationStation.Services
             else
             {
                 sb.Append("SELECT DISTINCT t.id,t.Name,t.Description,t.RoleDelegations,t.DeviceNameRegex,t.DeviceNameRegexDescription,t.UpdateActions,t.PartitionKey,t.Type FROM t JOIN r IN t.RoleDelegations WHERE t.PartitionKey = \"DeviceTag\" AND (");
-
-                foreach (string groupId in groupIds)
-                {
-                    sb.Append($"CONTAINS(r.SecurityGroupId, @arg{argCount}, true) ");
-                    if (groupId != groupIds.Last())
-                    {
-                        sb.Append("OR ");
-                    }
-                    argCount++;
-                }
+                sb.Append(BuildGroupIdContainsClause(groupIds));
                 if (!string.IsNullOrEmpty(name))
                 {
                     sb.Append($" AND CONTAINS(t.Name, @name, true)");
                 }
                 sb.Append(")");
-                
+
             }
             sb.Append($" ORDER BY t.Name ASC");
 
 
-            argCount = 0;
             QueryDefinition q = new QueryDefinition(sb.ToString());
 
             if (!groupIds.Contains(_DefaultGroup))
             {
-                foreach (string groupId in groupIds)
-                {
-                    q.WithParameter($"@arg{argCount}", groupId);
-                    argCount++;
-                }
+                BindGroupIdParameters(q, groupIds);
             }
             if (!string.IsNullOrEmpty(name))
             {
@@ -221,7 +191,7 @@ namespace DelegationStation.Services
                 var response = await queryIterator.ReadNextAsync();
                 deviceTags.AddRange(response.ToList());
             }
-            
+
             return deviceTags;
         }
         public async Task<int> GetDeviceTagCountAsync(IEnumerable<string> groupIds, string name = null)
@@ -235,7 +205,6 @@ namespace DelegationStation.Services
             }
 
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
-            int argCount = 0;
 
             if (groupIds.Contains(_DefaultGroup))
             {
@@ -248,16 +217,7 @@ namespace DelegationStation.Services
             else
             {
                 sb.Append("SELECT VALUE COUNT(1) FROM (SELECT DISTINCT t.id,t.Name,t.Description,t.RoleDelegations,t.UpdateActions,t.PartitionKey,t.Type FROM t JOIN r IN t.RoleDelegations WHERE t.PartitionKey = \"DeviceTag\" AND (");
-
-                foreach (string groupId in groupIds)
-                {
-                    sb.Append($"CONTAINS(r.SecurityGroupId, @arg{argCount}, true) ");
-                    if (groupId != groupIds.Last())
-                    {
-                        sb.Append("OR ");
-                    }
-                    argCount++;
-                }
+                sb.Append(BuildGroupIdContainsClause(groupIds));
                 if(!string.IsNullOrEmpty(name))
                 {
                     sb.Append($" AND CONTAINS(t.Name, @name, true)");
@@ -265,16 +225,11 @@ namespace DelegationStation.Services
                 sb.Append("))");
             }
 
-            argCount = 0;
             QueryDefinition q = new QueryDefinition(sb.ToString());
 
             if (!groupIds.Contains(_DefaultGroup))
             {
-                foreach (string groupId in groupIds)
-                {
-                    q.WithParameter($"@arg{argCount}", groupId);
-                    argCount++;
-                }
+                BindGroupIdParameters(q, groupIds);
             }
             if (!string.IsNullOrEmpty(name))
             {
@@ -292,6 +247,40 @@ namespace DelegationStation.Services
 
         }
 
+
+        /// <summary>
+        /// Builds the "CONTAINS(r.SecurityGroupId, @arg0, true) OR CONTAINS(r.SecurityGroupId, @arg1, true) ..."
+        /// fragment shared by GetDeviceTagsByPageAsync/GetDeviceTagsAsync/GetDeviceTagCountAsync's
+        /// non-admin branch. Callers wrap this in their own parentheses and combine it with a
+        /// differently-shaped SELECT/JOIN and optional name filter, so only this condition text is
+        /// shared -- not the surrounding query. Pair with BindGroupIdParameters to bind @arg{N}.
+        /// </summary>
+        private static string BuildGroupIdContainsClause(IEnumerable<string> groupIds)
+        {
+            var sb = new System.Text.StringBuilder();
+            int argCount = 0;
+            foreach (string groupId in groupIds)
+            {
+                sb.Append($"CONTAINS(r.SecurityGroupId, @arg{argCount}, true) ");
+                if (groupId != groupIds.Last())
+                {
+                    sb.Append("OR ");
+                }
+                argCount++;
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>Binds the @arg{N} parameters produced by BuildGroupIdContainsClause onto q.</summary>
+        private static void BindGroupIdParameters(QueryDefinition q, IEnumerable<string> groupIds)
+        {
+            int argCount = 0;
+            foreach (string groupId in groupIds)
+            {
+                q.WithParameter($"@arg{argCount}", groupId);
+                argCount++;
+            }
+        }
 
         public async Task<DeviceTag> GetDeviceTagAsync(string tagId)
         {
