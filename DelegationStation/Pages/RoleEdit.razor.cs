@@ -86,7 +86,6 @@ namespace DelegationStation.Pages
                     return;
                 }
 
-                role.Attributes.Where(a => a == AllowedAttributes.All).ToList().ForEach(a => role.Attributes.Remove(a));
                 role = await roleDBService.AddOrUpdateRoleAsync(role);
                 message = $"Correlation Id: {g.ToString()}\nSaved role.";
                 logger.LogInformation($"{message}\nUser: {userName} {userId}");
