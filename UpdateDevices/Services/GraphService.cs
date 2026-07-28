@@ -366,6 +366,55 @@ namespace UpdateDevices.Services
 
         }
 
+        public async Task<List<ManagedDevice>> GetManagedDevicesBySerialAsync(string make, string model, string serial)
+        {
+            string methodName = ExtensionHelper.GetMethodName() ?? "";
+            string className = this.GetType().Name;
+            string fullMethodName = className + "." + methodName;
+
+            List<ManagedDevice> results = new List<ManagedDevice>();
+
+            try
+            {
+                var devices = await _graphClient.DeviceManagement.ManagedDevices.GetAsync((requestConfiguration) =>
+                {
+                    requestConfiguration.QueryParameters.Filter = $"(manufacturer eq '{ExtensionHelper.EscapeODataFilterValue(make)}' and model eq '{ExtensionHelper.EscapeODataFilterValue(model)}' and serialNumber eq '{ExtensionHelper.EscapeODataFilterValue(serial)}')";
+                    requestConfiguration.QueryParameters.Select = [ "id", "manufacturer", "model", "serialNumber", "wiFiMacAddress", "ethernetMacAddress", "imei", "meid", "lastSyncDateTime" ];
+                });
+
+                if (devices?.Value != null)
+                {
+                    results = devices.Value;
+                }
+            }
+            catch (Microsoft.Graph.Models.ODataErrors.ODataError err) when (err.Error.Code.Equals("ResourceNotFound"))
+            {
+                _logger.DSLogInformation($"No managed devices found for: {make} {model} {serial}", fullMethodName);
+            }
+
+            return results;
+        }
+
+        public async Task RetireManagedDeviceAsync(string managedDeviceId)
+        {
+            string methodName = ExtensionHelper.GetMethodName() ?? "";
+            string className = this.GetType().Name;
+            string fullMethodName = className + "." + methodName;
+
+            await _graphClient.DeviceManagement.ManagedDevices[managedDeviceId].Retire.PostAsync();
+            _logger.DSLogAudit($"Retired stale Managed Device: {managedDeviceId}", fullMethodName);
+        }
+
+        public async Task DeleteManagedDeviceAsync(string managedDeviceId)
+        {
+            string methodName = ExtensionHelper.GetMethodName() ?? "";
+            string className = this.GetType().Name;
+            string fullMethodName = className + "." + methodName;
+
+            await _graphClient.DeviceManagement.ManagedDevices[managedDeviceId].DeleteAsync();
+            _logger.DSLogAudit($"Deleted stale Managed Device: {managedDeviceId}", fullMethodName);
+        }
+
         public async Task<ManagedDevice> GetManagedDevice(string deviceID)
         {
             string methodName = ExtensionHelper.GetMethodName() ?? "";
