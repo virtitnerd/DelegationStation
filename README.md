@@ -425,6 +425,18 @@ The default is 5, which is the correct value for using the default UpdateDevices
 <b>"MaxStragglerAttempts": "5"</b><br/>
 (Optional)  The number of times the Straggler Handler will re-attempt to process a device if it encounters errors during processing.  Defaults to 5.
 
+<b>"EnableStaleDeviceCleanup": "false"</b><br/>
+(Optional) When a newly-enrolled device is processed, checks Intune for other Managed Device objects sharing the same Make/Model/Serial Number that are also confirmed via matching WiFi/Ethernet MAC address or IMEI/MEID to be the same physical hardware, and retires or deletes them as superseded (e.g. after a reimage/Autopilot reset left a stale duplicate behind). Off by default. Devices with a known non-unique OEM placeholder serial number (e.g. "To Be Filled By O.E.M.") are always skipped, regardless of this setting.
+
+<b>"StaleDeviceCleanupDryRun": "true"</b><br/>
+(Optional) When stale-device cleanup is enabled, controls whether matches are only logged ("true") or actually retired/deleted ("false"). Defaults to "true" (log-only) so the matching logic can be reviewed against real data before any device is acted on.
+
+<b>"StaleDeviceCleanupAction": "Retire"</b><br/>
+(Optional) Set to "Retire" or "Delete" to control what happens to a confirmed stale device. Retire unenrolls the device and removes company data while leaving the Intune object for audit history; Delete removes the object outright. Defaults to "Retire".
+
+<b>"StaleDeviceCleanupMinInactiveDays": "1"</b><br/>
+(Optional) Minimum number of days since a candidate stale device's last Intune sync before it is considered eligible for cleanup, to avoid acting on a device that is simply offline rather than replaced. Defaults to 1.
+
 ### Certificate Configuration
 
 This is only needed if you are connecting to Graph using certificates.
