@@ -141,7 +141,7 @@ namespace UpdateDevices
                 if (tag == null)
                 {
                     _logger.DSLogError("Device " + device.Id + " is assigned to tag " + tagId + " which does not exist. No updates applied.", fullMethodName);
-                    return;
+                    continue;
                 }
 
                 //
@@ -159,7 +159,7 @@ namespace UpdateDevices
                             if (!Regex.IsMatch(device.UserPrincipalName, tag.AllowedUserPrincipalName))
                             {
                                 _logger.DSLogWarning("Primary user " + device.UserPrincipalName + " on ManagedDevice Id " + device.Id + " does not match Tag " + tag.Name + " allowed user principal names regex '" + tag.AllowedUserPrincipalName + "'.", fullMethodName);
-                                return;
+                                continue;
                             }
                             _logger.DSLogInformation("Primary user " + device.UserPrincipalName + " on ManagedDevice Id " + device.Id + " matches Tag " + tag.Name + " allowed user principal names regex '" + tag.AllowedUserPrincipalName + "'.", fullMethodName);
                         }
@@ -172,7 +172,7 @@ namespace UpdateDevices
                 catch (Exception ex)
                 {
                     _logger.DSLogException("UserPrincipalName " + device.UserPrincipalName + " on ManagedDevice Id " + device.Id + " on " + tag.Id + " allowed user principal names " + tag.AllowedUserPrincipalName + ".", ex, fullMethodName);
-                    return;
+                    continue;
                 }
 
                 //
@@ -250,7 +250,7 @@ namespace UpdateDevices
                 if (tag.UpdateActions == null || tag.UpdateActions.Count < 1)
                 {
                     _logger.DSLogWarning("No update actions configured for " + tag.Name + ".  No updates applied for device " + device.Id + ".", fullMethodName);
-                    return;
+                    continue;
                 }
 
 
