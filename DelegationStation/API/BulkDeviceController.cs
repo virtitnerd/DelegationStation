@@ -66,7 +66,7 @@ namespace DelegationStation.API
                 return BadRequest("Unable to find tag");
             }
 
-            if (_authorizationService.AuthorizeAsync(User, tag, Authorization.DeviceTagOperations.Read).Result.Succeeded == false)
+            if ((await _authorizationService.AuthorizeAsync(User, tag, Authorization.DeviceTagOperations.Read)).Succeeded == false)
             {
                 return new UnauthorizedResult();
             }

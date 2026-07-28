@@ -59,7 +59,7 @@ namespace DelegationStation.Pages
         {
             Guid g = Guid.NewGuid();
 
-            if (authorizationService.AuthorizeAsync(user, "DelegationStationAdmin").Result.Succeeded == false)
+            if ((await authorizationService.AuthorizeAsync(user, "DelegationStationAdmin")).Succeeded == false)
             {
                 var message = $"Correlation Id: {g.ToString()}\nUser is not authorized to save roles.";
                 logger.LogInformation($"{message}\nUser: {userName} {userId}");
