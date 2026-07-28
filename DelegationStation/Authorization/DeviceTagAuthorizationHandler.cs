@@ -155,7 +155,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute1).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute1 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -177,7 +177,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute2).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute2 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -199,7 +199,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute3).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute3 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -221,7 +221,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute4).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute4 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -243,7 +243,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute5).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute5 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -265,7 +265,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute6).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute6 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -287,7 +287,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute7).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute7 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -309,7 +309,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute8).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute8 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -331,7 +331,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute9).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute9 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -353,7 +353,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute10).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute10 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -375,7 +375,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute11).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute11 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -397,7 +397,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute12).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute12 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -419,7 +419,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute13).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute13 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -441,7 +441,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute14).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute14 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
@@ -463,7 +463,7 @@ namespace DelegationStation.Authorization
 
                             if (roleDelegation.Role.Attributes != null)
                             {
-                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute15).Count() > 0)
+                                if (roleDelegation.Role.Attributes.Where(a => a == AllowedAttributes.ExtensionAttribute15 || a == AllowedAttributes.All).Count() > 0)
                                 {
                                     context.Succeed(requirement);
                                     return Task.CompletedTask;
