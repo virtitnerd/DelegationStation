@@ -27,7 +27,6 @@ namespace DelegationStationShared.Models
         public RoleDelegation DeepCopyKeepId()
         {
             RoleDelegation other = (RoleDelegation)this.MemberwiseClone();
-            other.Id = Guid.NewGuid();
             other.Role = this.Role.DeepCopyKeepId();
             return other;
         }
