@@ -147,21 +147,7 @@ public class DeviceTagAuthorizationHandlerTests
     {
         Role role = new Role();
         role.Name = "testRole";
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute1);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute2);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute3);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute4);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute5);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute6);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute7);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute8);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute9);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute10);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute11);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute12);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute13);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute14);
-        role.Attributes.Add(AllowedAttributes.ExtensionAttribute15);
+        role.Attributes.Add(AllowedAttributes.All);
         role.SecurityGroups = true;
         role.AdministrativeUnits = true;
         RoleDelegation roleDelegation = new RoleDelegation();
