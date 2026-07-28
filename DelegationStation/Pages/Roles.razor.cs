@@ -49,11 +49,15 @@ namespace DelegationStation.Pages
             }
         }
 
-        private void RemoveRole(Role role)
+        // async void is used here (rather than async Task) because ConfirmMessage.ConfirmAction and
+        // the button's @onclick both bind these through a plain Action delegate, not EventCallback --
+        // this is the sanctioned use of async void, since UI event handlers aren't composable/awaitable
+        // by the caller regardless.
+        private async void RemoveRole(Role role)
         {
             Guid c = Guid.NewGuid();
 
-            if (authorizationService.AuthorizeAsync(user, "DelegationStationAdmin").Result.Succeeded == false)
+            if ((await authorizationService.AuthorizeAsync(user, "DelegationStationAdmin")).Succeeded == false)
             {
                 string message = $"Error deleting role {deleteRole.Name}.\nCorrelation Id: {c.ToString()}. Insufficient access.";
                 logger.LogError($"{message}\nUser: {userName} {userId}");
@@ -64,7 +68,7 @@ namespace DelegationStation.Pages
             Show();
         }
 
-        private void DeleteRole()
+        private async void DeleteRole()
         {
             Guid c = Guid.NewGuid();
             if (deleteRole.Id == Guid.Empty)
@@ -72,7 +76,7 @@ namespace DelegationStation.Pages
                 return;
             }
 
-            if (authorizationService.AuthorizeAsync(user, "DelegationStationAdmin").Result.Succeeded == false)
+            if ((await authorizationService.AuthorizeAsync(user, "DelegationStationAdmin")).Succeeded == false)
             {
                 string message = $"Error deleting role {deleteRole.Name}.\nCorrelation Id: {c.ToString()}. Insufficient access.";
                 logger.LogError($"{message}\nUser: {userName} {userId}");
@@ -82,7 +86,9 @@ namespace DelegationStation.Pages
 
             try
             {
-                roleDBService.DeleteRoleAsync(deleteRole);
+                // Was previously fire-and-forget (missing await) -- roles.Remove and the success
+                // message ran immediately without waiting for the delete to actually complete.
+                await roleDBService.DeleteRoleAsync(deleteRole);
                 roles.Remove(deleteRole);
                 string message = $"Correlation Id: {c.ToString()}\nRole {deleteRole.Name} deleted successfully";
                 userMessage = "";
