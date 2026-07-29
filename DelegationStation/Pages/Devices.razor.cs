@@ -52,6 +52,8 @@ namespace DelegationStation.Pages
         private string editBackDrop = "hideModal";
         private EditContext editEditContext;
         private ValidationMessageStore editMessageStore;
+        // Opt-in: editing existing devices is disabled unless explicitly enabled in configuration.
+        private bool editingEnabled = false;
 
         private Dictionary<DeviceStatus, string> StatusDefinitions = new Dictionary<DeviceStatus, string>{
             { DeviceStatus.Added, "Device has been added to the system but not yet synced with corporate identifiers." },
@@ -87,6 +89,8 @@ namespace DelegationStation.Pages
                 userName = user.Claims.Where(c => c.Type == "name").Select(c => c.Value.ToString()).FirstOrDefault() ?? "";
                 userId = user.Claims.Where(c => c.Type == "http://schemas.microsoft.com/identity/claims/objectidentifier").Select(c => c.Value.ToString()).FirstOrDefault() ?? "";
             }            
+
+            bool.TryParse(config.GetSection("EnableDeviceEditing").Value, out editingEnabled);
 
             UpdateClaims();
             await GetTags();
@@ -482,6 +486,14 @@ namespace DelegationStation.Pages
         {
             Guid c = Guid.NewGuid();
             userMessage = new MarkupString("");
+
+            if (!editingEnabled)
+            {
+                userMessage = (MarkupString)"Error: Device editing is not enabled.";
+                logger.LogError("SaveEditDevice called while EnableDeviceEditing is disabled. DeviceId: {DeviceId}, CorrelationId: {CorrelationId}, User: {UserName} {UserId}",
+                    editDevice.Id, c, userName, userId);
+                return;
+            }
 
             logger?.LogInformation("Starting SaveEditDevice operation. DeviceId: {DeviceId}, CorrelationId: {CorrelationId}, User: {UserName} {UserId}",
                 editDevice.Id, c, userName, userId);

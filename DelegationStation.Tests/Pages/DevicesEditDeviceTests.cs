@@ -48,7 +48,8 @@ namespace DelegationStation.Tests.Pages
             DeviceTag oldTag, DeviceTag newTag, Device device,
             IAuthorizationService authorizationService,
             out Func<Device?> updatedDevice,
-            Exception? updateDeviceException = null)
+            Exception? updateDeviceException = null,
+            bool editingEnabled = true)
         {
             string defaultAdminGroupId = Guid.NewGuid().ToString();
 
@@ -86,7 +87,8 @@ namespace DelegationStation.Tests.Pages
             var config = new ConfigurationBuilder()
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    { "DefaultAdminGroupObjectId", defaultAdminGroupId }
+                    { "DefaultAdminGroupObjectId", defaultAdminGroupId },
+                    { "EnableDeviceEditing", editingEnabled.ToString() }
                 })
                 .Build();
 
@@ -253,6 +255,32 @@ namespace DelegationStation.Tests.Pages
                     Assert.IsNull(updatedDevice(), "The in-memory device list should not be updated when the save fails.");
                     Assert.IsTrue(cut.Markup.Contains("already in use"), $"Markup:\n{cut.Markup}");
                 });
+            }
+        }
+
+        [TestMethod]
+        public void EditButton_NotRenderedWhenEditingDisabled()
+        {
+            using (ShimsContext.Create())
+            {
+                // Arrange: EnableDeviceEditing defaults to false - the feature is opt-in.
+                var oldTag = new DeviceTag { Id = Guid.NewGuid(), Name = "OldTag" };
+                var newTag = new DeviceTag { Id = Guid.NewGuid(), Name = "NewTag" };
+                var device = new Device
+                {
+                    Make = "TestMake",
+                    Model = "TestModel",
+                    SerialNumber = "SN12345",
+                    PreferredHostname = "host1",
+                    Tags = new List<string> { oldTag.Id.ToString() }
+                };
+                var auth = new TagSpecificAuthorizationService(new[] { oldTag.Id.ToString(), newTag.Id.ToString() });
+                var cut = SetupComponent(oldTag, newTag, device, auth, out var updatedDevice, editingEnabled: false);
+
+                // Assert: no Edit button anywhere on the page when the feature is disabled.
+                cut.WaitForAssertion(() =>
+                    Assert.IsFalse(cut.FindAll("button").Any(b => b.ClassList.Contains("btn-primary") && b.ClassList.Contains("btn-sm")),
+                        "Edit button should not render when EnableDeviceEditing is disabled."));
             }
         }
     }
