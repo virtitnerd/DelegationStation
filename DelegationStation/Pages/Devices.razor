@@ -10,6 +10,7 @@
 @inject ILogger<Tags> logger
 @inject NavigationManager nav
 @inject IAuthorizationService authorizationService
+@inject IConfiguration config
 
 @attribute [Authorize]
 <h3>Devices</h3>
@@ -170,9 +171,12 @@
                             <td class="align-middle" align="center">
                                 @if (device.Status != @DeviceStatus.Deleting)
                                 {
-                                    <button type="button" class="btn btn-primary btn-sm text-nowrap mb-1" @onclick=@(() => ShowEditDevice(device))>
-                                        <span class="oi oi-pencil d-sm-none"></span><section class="d-none d-sm-block"><span class="oi oi-pencil"></span> Edit</section>
-                                    </button>
+                                    @if (editingEnabled)
+                                    {
+                                        <button type="button" class="btn btn-primary btn-sm text-nowrap mb-1" @onclick=@(() => ShowEditDevice(device))>
+                                            <span class="oi oi-pencil d-sm-none"></span><section class="d-none d-sm-block"><span class="oi oi-pencil"></span> Edit</section>
+                                        </button>
+                                    }
                                     <button type="button" class="btn btn-danger btn-sm text-nowrap" @onclick=@(() => RemoveDevice(device))>
                                         <span class="oi oi-trash d-sm-none"></span><section class="d-none d-sm-block"><span class="oi oi-trash"></span> Delete</section>
                                     </button>
@@ -288,6 +292,8 @@
 
        <ConfirmMessage MessageBody=@confirmMessage ConfirmAction="@(async() =>await DeleteDevice())" @ref="ConfirmDelete" />
 
+        @if (editingEnabled)
+        {
         <div class="modal fade @editBackDrop" aria-modal="true" role="dialog" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
@@ -336,6 +342,7 @@
                 </div>
             </div>
         </div>
+        }
 
     </Authorized>
 

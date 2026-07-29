@@ -50,6 +50,9 @@ namespace DelegationStation.Pages
         private bool isUpdating;
         private List<string> updateErrors = new();
         private string userMessage = string.Empty;
+        // Opt-in: bulk hostname updates via CSV are disabled unless explicitly enabled in configuration
+        // (same EnableDeviceEditing flag as the single-device Edit UI on the Devices page).
+        private bool editingEnabled = false;
 
 
         protected override async Task OnInitializedAsync()
@@ -61,6 +64,8 @@ namespace DelegationStation.Pages
                 userName = user.Claims.Where(c => c.Type == "name").Select(c => c.Value.ToString()).FirstOrDefault() ?? "";
                 userId = user.Claims.Where(c => c.Type == "http://schemas.microsoft.com/identity/claims/objectidentifier").Select(c => c.Value.ToString()).FirstOrDefault() ?? "";
             }
+
+            bool.TryParse(config.GetSection("EnableDeviceEditing").Value, out editingEnabled);
 
             UpdateClaims();
             await GetTags();
@@ -189,9 +194,12 @@ namespace DelegationStation.Pages
                             try
                             {
                                 // Validate Make, Model, SerialNumber, Action
-                                if (input[CsvColumns.Action].ToLower() != "add" && input[CsvColumns.Action].ToLower() != "remove")
+                                bool isValidAction = input[CsvColumns.Action].ToLower() == "add" || input[CsvColumns.Action].ToLower() == "remove"
+                                    || (editingEnabled && input[CsvColumns.Action].ToLower() == "update");
+                                if (!isValidAction)
                                 {
-                                    var message = $"Line {line}:\n Invalid action. Action should be either add or remove.\nCorrelation Id: {c.ToString()}";
+                                    var validActions = editingEnabled ? "add, remove, or update" : "add or remove";
+                                    var message = $"Line {line}:\n Invalid action. Action should be either {validActions}.\nCorrelation Id: {c.ToString()}";
                                     fileError.Add(message);
                                     logger.LogWarning($"{message}\nUser: {userName} {userId}");
                                     continue;
@@ -237,10 +245,16 @@ namespace DelegationStation.Pages
                                 // Do data annotation validations
                                 if (!Validator.TryValidateObject(newDevice, context, results, true))
                                 {
-                                    // Ignore preferred hostname validation and OS if action is remove
+                                    // Ignore preferred hostname validation and OS if action is remove.
+                                    // OS doesn't apply to update either (hostname-only change), but hostname
+                                    // validation must still run since that's the field being changed.
                                     if (input[CsvColumns.Action].ToLower() == "remove")
                                     {
                                        results.RemoveAll(r => r.MemberNames.Contains(nameof(newDevice.PreferredHostname)) || r.MemberNames.Contains(nameof(newDevice.OS)));
+                                    }
+                                    else if (input[CsvColumns.Action].ToLower() == "update")
+                                    {
+                                       results.RemoveAll(r => r.MemberNames.Contains(nameof(newDevice.OS)));
                                     }
 
                                     // if validation issues remain report error
@@ -259,12 +273,13 @@ namespace DelegationStation.Pages
                                     }
                                 }
 
-                                // Do custom tag-specific validation (only for add action)
+                                // Do custom tag-specific validation (add and update - both carry a
+                                // PreferredHostname that needs to be checked against the tag's rules)
                                 DeviceTag tag = deviceTags.Where(t => t.Id.ToString() == appliedTags[0]).FirstOrDefault() ?? new DeviceTag();
                                 List<DeviceTag> selectedTags = new List<DeviceTag>();
                                 selectedTags.Add(tag);
 
-                                if (newDevice.Action == DeviceBulkAction.add)
+                                if (newDevice.Action == DeviceBulkAction.add || newDevice.Action == DeviceBulkAction.update)
                                 {
 
                                     var validationErrors = Validation.NewDeviceValidation.ValidateBulkDevice(newDevice, selectedTags, logger);
@@ -432,6 +447,58 @@ namespace DelegationStation.Pages
                     else
                     {
                         var message = $"Device to remove not found: \nMake: {device.Make}\nModel: {device.Model}\nSerialNumber: {device.SerialNumber}\nPreferred Hostname: {device.PreferredHostname}\nCorrelation Id: {c.ToString()}";
+                        updateErrors.Add(message);
+                        logger.LogError($"{message}\nUser: {userName} {userId}");
+                    }
+                }
+                else if (device.Action == DeviceBulkAction.update && !editingEnabled)
+                {
+                    var message = $"Error: Device editing is not enabled.\nMake: {device.Make}\nModel: {device.Model}\nSerialNumber: {device.SerialNumber}\nCorrelation Id: {c.ToString()}";
+                    updateErrors.Add(message);
+                    logger.LogError($"{message}\nUser: {userName} {userId}");
+                }
+                else if (device.Action == DeviceBulkAction.update)
+                {
+                    Device? d = null;
+                    try
+                    {
+                        d = await deviceDBService.GetDeviceAsync(device.Make, device.Model, device.SerialNumber);
+                    }
+                    catch (Exception ex)
+                    {
+                        var message = $"{ex.Message}\nMake: {device.Make}\nModel: {device.Model}\nSerialNumber: {device.SerialNumber}\nPreferred Hostname: {device.PreferredHostname}\nCorrelation Id: {c.ToString()}";
+                        logger.LogError($"{message}\nUser: {userName} {userId}");
+                    }
+                    if (d != null)
+                    {
+                        // Validate the applied tag is on the device - Tag reassignment isn't supported
+                        // via bulk CSV, only hostname changes, so the device must already be in this tag.
+                        if (!d.Tags.Contains(tagToApply))
+                        {
+                            var message = $"Bulk Updating Devices Error on Update:\nMake: {device.Make}\nModel: {device.Model}\nSerialNumber: {device.SerialNumber}\nPreferred Hostname: {device.PreferredHostname}\nTag: {tagToApply} not found on device.\nCorrelation Id: {c.ToString()}";
+                            updateErrors.Add(message);
+                            logger.LogError($"{message}\nUser: {userName} {userId}");
+                        }
+                        else
+                        {
+                            try
+                            {
+                                d.PreferredHostname = device.PreferredHostname;
+                                d.ModifiedUTC = DateTime.UtcNow;
+                                await deviceDBService.UpdateDeviceAsync(d);
+                                logger.LogInformation($"Device Hostname Updated:\nMake: {device.Make}\nModel: {device.Model}\nSerialNumber: {device.SerialNumber}\nNew Preferred Hostname: {device.PreferredHostname}\nUser: {userName} {userId}");
+                            }
+                            catch (Exception ex)
+                            {
+                                var message = $"{ex.Message}\nMake: {device.Make}\nModel: {device.Model}\nSerialNumber: {device.SerialNumber}\nPreferred Hostname: {device.PreferredHostname}\nCorrelation Id: {c.ToString()}";
+                                updateErrors.Add(message);
+                                logger.LogError($"{message}\nUser: {userName} {userId}");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var message = $"Device to update not found: \nMake: {device.Make}\nModel: {device.Model}\nSerialNumber: {device.SerialNumber}\nPreferred Hostname: {device.PreferredHostname}\nCorrelation Id: {c.ToString()}";
                         updateErrors.Add(message);
                         logger.LogError($"{message}\nUser: {userName} {userId}");
                     }
