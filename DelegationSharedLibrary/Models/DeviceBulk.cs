@@ -43,6 +43,7 @@ namespace DelegationStationShared.Models
     public enum DeviceBulkAction
     {
         add,
-        remove
+        remove,
+        update
     }
 }
