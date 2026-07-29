@@ -28,9 +28,9 @@
             <p>
                 Upload a csv file with the following format:
                 <ul>
-                    <li>Make,Model,SerialNumber,OS,PreferredHostname, Action (add,remove)</li>
-                    <li>Make,Model,SerialNumber,OS,PreferredHostname, Action (add,remove)</li>
-                    <li>Make,Model,SerialNumber,OS,PreferredHostname, Action (add,remove)</li>
+                    <li>Make,Model,SerialNumber,OS,PreferredHostname, Action (add,remove@(editingEnabled ? ",update" : ""))</li>
+                    <li>Make,Model,SerialNumber,OS,PreferredHostname, Action (add,remove@(editingEnabled ? ",update" : ""))</li>
+                    <li>Make,Model,SerialNumber,OS,PreferredHostname, Action (add,remove@(editingEnabled ? ",update" : ""))</li>
                 </ul>
             </p>
         </div>
@@ -41,8 +41,12 @@
                     <li>Microsoft Surface,Laptop 5,246813579,Windows,host1,add</li>
                     <li>Microsoft Surface,Laptop 5,246823580,Windows,host2,add</li>
                     <li>Apple,Macbook Pro,246813579,,,remove</li>
+                    @if (editingEnabled)
+                    {
+                        <li>Microsoft Surface,Laptop 5,246813579,,host3,update</li>
+                    }
                 </ul>
-                Note:  Preferred Hostname and OS fields are not used for removal.
+                Note:  Preferred Hostname and OS fields are not used for removal.@(editingEnabled ? " OS is not used for update; the device's existing Preferred Hostname is replaced with the value provided." : "")
             </p>
         </div>
     </div>
