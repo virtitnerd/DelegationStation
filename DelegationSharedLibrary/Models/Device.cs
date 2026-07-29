@@ -35,7 +35,7 @@ namespace DelegationStationShared.Models
         [Required(AllowEmptyStrings = false)]
         public string Type { get; private set; }
 
-        // Note:  Because we don't allow modifications from GUI is really AddedUTC
+        // Note:  Set on both creation and GUI/bulk edits (Tag/PreferredHostname changes)
         public DateTime ModifiedUTC { get; set; }
 
         // GUID of user who created device in webapp
@@ -88,6 +88,13 @@ namespace DelegationStationShared.Models
 
         }
 
+        public Device DeepCopy()
+        {
+            Device other = (Device)this.MemberwiseClone();
+            other.Tags = new List<string>(this.Tags);
+            other.UpdateActions = new List<DeviceUpdateAction>(this.UpdateActions);
+            return other;
+        }
 
     }
 

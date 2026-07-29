@@ -516,6 +516,37 @@ namespace DelegationStation.Services
             return response;
         }
 
+        public async Task<Device> UpdateDeviceAsync(Device device)
+        {
+            if (device == null || device.Id == Guid.Empty)
+            {
+                throw new Exception("DeviceDBService UpdateDeviceAsync was sent null or invalid device");
+            }
+
+            device.PreferredHostname = device.PreferredHostname.Trim();
+
+            if (!String.IsNullOrEmpty(device.PreferredHostname))
+            {
+                QueryDefinition q = new QueryDefinition("SELECT * FROM d WHERE d.Type = \"Device\" AND d.id != @id AND STRINGEQUALS(d.PreferredHostname,@name,true)");
+                q.WithParameter("@id", device.Id.ToString());
+                q.WithParameter("@name", device.PreferredHostname);
+                var deviceQueryIterator = this._container.GetItemQueryIterator<Device>(q);
+                List<Device> matches = new List<Device>();
+                while (deviceQueryIterator.HasMoreResults)
+                {
+                    var qIresponse = await deviceQueryIterator.ReadNextAsync();
+                    matches.AddRange(qIresponse.ToList());
+                }
+                if (matches.Count != 0)
+                {
+                    throw new Exception("PreferredHostname already in use.");
+                }
+            }
+
+            ItemResponse<Device> response = await this._container.UpsertItemAsync<Device>(device);
+            return response;
+        }
+
         public async Task<Device> GetDeviceAsync(string deviceId)
         {
             if (deviceId == null)
