@@ -46,6 +46,13 @@ namespace DelegationStation.Pages
         private Device deleteDevice = new Device() { Id = Guid.Empty };
         private MarkupString confirmMessage = new MarkupString("");
 
+        private Device editDevice = new Device();
+        private List<string> originalEditTagIds = new List<string>();
+        private string editTagSearch = "";
+        private string editBackDrop = "hideModal";
+        private EditContext editEditContext;
+        private ValidationMessageStore editMessageStore;
+
         private Dictionary<DeviceStatus, string> StatusDefinitions = new Dictionary<DeviceStatus, string>{
             { DeviceStatus.Added, "Device has been added to the system but not yet synced with corporate identifiers." },
             { DeviceStatus.Synced, "Device has been successfully synced with corporate identifiers." },
@@ -65,6 +72,10 @@ namespace DelegationStation.Pages
             messageStore = new ValidationMessageStore(editContext);
             searchDevice.Tags = new List<string>();
             searchDevice.Tags.Add(string.Empty);
+
+            editEditContext = new EditContext(editDevice);
+            editEditContext.OnValidationRequested += HandleEditValidationRequested;
+            editMessageStore = new ValidationMessageStore(editEditContext);
         }
 
         protected override async Task OnInitializedAsync()
@@ -127,11 +138,34 @@ namespace DelegationStation.Pages
 
         }
 
+        private void HandleEditValidationRequested(object? sender, ValidationRequestedEventArgs args)
+        {
+            if (editMessageStore == null || editEditContext == null)
+            {
+                logger?.LogWarning("HandleEditValidationRequested: editMessageStore or editEditContext is null");
+                return;
+            }
+
+            editMessageStore?.Clear();
+
+            var validationErrors = Validation.NewDeviceValidation.ValidateDevice(editDevice, deviceTags, logger);
+
+            foreach (var err in validationErrors)
+            {
+                editMessageStore.Add(editEditContext.Field(err.Key), err.Value);
+                editEditContext.NotifyValidationStateChanged();
+            }
+        }
+
         public void Dispose()
         {
             if (editContext is not null)
             {
                 editContext.OnValidationRequested -= HandleValidationRequested;
+            }
+            if (editEditContext is not null)
+            {
+                editEditContext.OnValidationRequested -= HandleEditValidationRequested;
             }
         }
 
@@ -410,6 +444,92 @@ namespace DelegationStation.Pages
             // confirmMessage = (MarkupString)$"<b>This will mark the device to be unenrolled and deleted from Corporate Identifiers and Delegation Station: </b></br></br><b>Make:</b> {deleteDevice.Make}<br /><b>Model:</b> {deleteDevice.Model}<br /><b>Serial Number:</b> {deleteDevice.SerialNumber}</br></br><b>Confirm you want to <u>unenroll</u> and <u>delete</u> this device:</b><br />";
             confirmMessage = (MarkupString)$"<b>This will mark the device to be deleted from both Corporate Identifiers and Delegation Station: </b></br></br><b>Make:</b> {deleteDevice.Make}<br /><b>Model:</b> {deleteDevice.Model}<br /><b>Serial Number:</b> {deleteDevice.SerialNumber}</br></br><b>Confirm you want to <u>delete</u> this device:</b><br />";
             ConfirmDelete?.Show();
+        }
+
+        private void ShowEditDevice(Device device)
+        {
+            editDevice = device.DeepCopy();
+            originalEditTagIds = new List<string>(device.Tags);
+            editTagSearch = "";
+
+            editEditContext.OnValidationRequested -= HandleEditValidationRequested;
+            editMessageStore.Clear();
+
+            editEditContext = new EditContext(editDevice);
+            editEditContext.OnValidationRequested += HandleEditValidationRequested;
+            editMessageStore = new ValidationMessageStore(editEditContext);
+
+            editBackDrop = "show showModal modalBackdrop";
+        }
+
+        private void AddRemoveEditTag(DeviceTag tag)
+        {
+            if (editDevice.Tags.Contains(tag.Id.ToString()))
+            {
+                editDevice.Tags.Remove(tag.Id.ToString());
+            }
+            else
+            {
+                editDevice.Tags.Clear();
+                editDevice.Tags.Add(tag.Id.ToString());
+            }
+
+            editMessageStore.Clear();
+            editEditContext.NotifyValidationStateChanged();
+        }
+
+        private async Task SaveEditDevice()
+        {
+            Guid c = Guid.NewGuid();
+            userMessage = new MarkupString("");
+
+            logger?.LogInformation("Starting SaveEditDevice operation. DeviceId: {DeviceId}, CorrelationId: {CorrelationId}, User: {UserName} {UserId}",
+                editDevice.Id, c, userName, userId);
+
+            try
+            {
+                var involvedTagIds = originalEditTagIds.Union(editDevice.Tags);
+                foreach (string tagId in involvedTagIds)
+                {
+                    DeviceTag tag = deviceTags.Where(t => t.Id.ToString() == tagId).FirstOrDefault() ?? new DeviceTag();
+
+                    var authRequest = await authorizationService.AuthorizeAsync(user, tag, Authorization.DeviceTagOperations.Read);
+                    if (!authRequest.Succeeded)
+                    {
+                        userMessage = (MarkupString)$"Error: Not authorized to manage tag {tag.Id} {tag.Name}.\nCorrelation Id: {c.ToString()}";
+                        logger.LogError("Authorization failed: User not authorized to manage tag {TagId} ({TagName}) while editing device. CorrelationId: {CorrelationId}, User: {UserName} {UserId}",
+                            tag.Id, tag.Name, c, userName, userId);
+                        return;
+                    }
+                }
+
+                editDevice.ModifiedUTC = DateTime.UtcNow;
+
+                Device resp = await deviceDBService.UpdateDeviceAsync(editDevice);
+
+                int idx = devices.FindIndex(d => d.Id == resp.Id);
+                if (idx >= 0)
+                {
+                    devices[idx] = resp;
+                }
+
+                logger?.LogInformation("Device updated successfully. DeviceId: {DeviceId}, CorrelationId: {CorrelationId}, User: {UserName} {UserId}",
+                    resp.Id, c, userName, userId);
+
+                editBackDrop = "hideModal";
+                userMessage = (MarkupString)"Device updated successfully.";
+            }
+            catch (Exception ex)
+            {
+                userMessage = (MarkupString)$"Error updating device: {ex.Message} <br />Correlation Id:{c.ToString()}";
+                logger.LogError(ex, "Error updating device. DeviceId: {DeviceId}, CorrelationId: {CorrelationId}, User: {UserName} {UserId}",
+                    editDevice.Id, c, userName, userId);
+            }
+        }
+
+        private void CancelEditDevice()
+        {
+            editBackDrop = "hideModal";
         }
 
         /// <summary>Navigates to the first page and reloads devices.</summary>
