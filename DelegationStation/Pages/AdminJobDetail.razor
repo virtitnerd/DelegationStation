@@ -1,0 +1,54 @@
+@page "/AdminJobs/{Id}"
+@using DelegationStation.Interfaces
+
+@inject IAdminJobDBService adminJobDBService
+@inject ILogger<AdminJobDetail> logger
+
+@attribute [Authorize]
+
+<h3>Admin Job</h3>
+
+<AuthorizeView Policy="DelegationStationAdmin">
+    <Authorized>
+
+        @if (!string.IsNullOrEmpty(userMessage))
+        {
+            <div class="alert alert-danger" role="alert">@userMessage</div>
+        }
+
+        @if (job != null)
+        {
+            <p><strong>Job Type:</strong> @job.JobType</p>
+            <p><strong>Status:</strong> @job.Status</p>
+            <p><strong>Started By:</strong> @job.StartedByUserName</p>
+            <p><strong>Created:</strong> @job.CreatedUTC.ToLocalTime()</p>
+            @if (job.StartedUTC != null)
+            {
+                <p><strong>Started:</strong> @job.StartedUTC.Value.ToLocalTime()</p>
+            }
+            @if (job.CompletedUTC != null)
+            {
+                <p><strong>Completed:</strong> @job.CompletedUTC.Value.ToLocalTime()</p>
+            }
+
+            <p>@job.ProcessedCount / @job.TotalCount processed (@job.SuccessCount succeeded, @job.FailureCount failed)</p>
+
+            <div class="progress">
+                <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" style="width: calc((@job.ProcessedCount / @(job.TotalCount == 0 ? 1 : job.TotalCount)) * 100%);" role="progressbar" aria-label="Job progress" aria-valuenow="@job.ProcessedCount" aria-valuemin="0" aria-valuemax="@job.TotalCount"></div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(job.LastErrorMessage))
+            {
+                <div class="error-ui mt-3">
+                    <p>Last error:</p>
+                    <p class="flashError">@job.LastErrorMessage</p>
+                </div>
+            }
+        }
+
+    </Authorized>
+    <NotAuthorized>
+        <h3>Not Authorized</h3>
+        <p>User is unable to view admin operations.</p>
+    </NotAuthorized>
+</AuthorizeView>
