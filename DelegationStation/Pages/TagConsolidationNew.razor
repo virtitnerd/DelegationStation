@@ -1,0 +1,74 @@
+@page "/AdminJobs/TagConsolidation/New"
+@using DelegationStation.Interfaces
+
+@inject IAdminJobDBService adminJobDBService
+@inject IDeviceTagDBService deviceTagDBService
+@inject NavigationManager nav
+@inject ILogger<TagConsolidationNew> logger
+@inject IAuthorizationService authorizationService
+
+@attribute [Authorize]
+
+<h3>New Tag Consolidation</h3>
+
+<AuthorizeView Policy="DelegationStationAdmin">
+    <Authorized>
+
+        <p>Migrate all devices from an old tag to a new tag. Each device's Tags value is replaced entirely (single-tag replace) - this only changes what DelegationStation will apply the next time each device is reimaged and re-enrolls, it does not touch anything already in Intune today.</p>
+
+        @if (!string.IsNullOrEmpty(userMessage))
+        {
+            <div class="alert alert-danger" role="alert">@userMessage</div>
+        }
+
+        @if (validationErrors.Count > 0)
+        {
+            <div class="alert alert-danger" role="alert">
+                <ul class="mb-0">
+                    @foreach (var error in validationErrors)
+                    {
+                        <li>@error</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        @foreach (var row in rows)
+        {
+            <div class="row align-items-end mb-3">
+                <div class="col-5">
+                    <label class="form-label">Old Tag</label>
+                    <select class="form-select" @bind="row.OldTagId">
+                        <option value="">Select Tag</option>
+                        @foreach (var tag in deviceTags)
+                        {
+                            <option value="@tag.Id">@tag.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-5">
+                    <label class="form-label">New Tag</label>
+                    <select class="form-select" @bind="row.NewTagId">
+                        <option value="">Select Tag</option>
+                        @foreach (var tag in deviceTags)
+                        {
+                            <option value="@tag.Id">@tag.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-2">
+                    <button type="button" class="btn btn-outline-danger" @onclick=@(() => RemoveRow(row))>Remove</button>
+                </div>
+            </div>
+        }
+
+        <button type="button" class="btn btn-outline-secondary mb-3" @onclick=AddRow>+ Add Pair</button>
+        <br />
+        <button type="button" class="btn btn-primary @(submitting ? "disabled" : "")" @onclick=SubmitAsync>Start Consolidation</button>
+
+    </Authorized>
+    <NotAuthorized>
+        <h3>Not Authorized</h3>
+        <p>User is unable to run admin operations.</p>
+    </NotAuthorized>
+</AuthorizeView>
