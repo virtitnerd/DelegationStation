@@ -42,6 +42,11 @@ else
     }
 }
 
+// Opt-in: the Admin Operations background-job framework (e.g. bulk Tag Consolidation) is
+// disabled unless explicitly enabled - when off, AdminJobBackgroundService is not registered
+// at all, not registered-but-no-op.
+bool.TryParse(builder.Configuration["EnableAdminOperations"], out bool enableAdminOperations);
+
 
 //Add services to the container.
 builder.Services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
@@ -92,7 +97,15 @@ builder.Services.AddSingleton<IGraphService, GraphService>();
 builder.Services.AddSingleton<IRoleDBService, RoleDBService>();
 builder.Services.AddSingleton<ICorpIdDBService, CorpIdDBService>();
 
-builder.Services.AddApplicationInsightsTelemetry(opt => 
+builder.Services.AddSingleton<IAdminJobDBService, AdminJobDBService>();
+builder.Services.AddSingleton<IAdminJobExecutor, TagConsolidationJobExecutor>();
+builder.Services.AddSingleton<IAdminJobExecutorRegistry, AdminJobExecutorRegistry>();
+if (enableAdminOperations)
+{
+    builder.Services.AddHostedService<AdminJobBackgroundService>();
+}
+
+builder.Services.AddApplicationInsightsTelemetry(opt =>
     opt.ConnectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"]);
 
 var app = builder.Build();
