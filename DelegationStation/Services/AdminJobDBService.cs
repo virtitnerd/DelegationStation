@@ -138,10 +138,10 @@ namespace DelegationStation.Services
 
         public async Task SetTotalCountAsync(string jobId, int total)
         {
-            await _container.PatchItemAsync<AdminJob>(jobId, new PartitionKey("AdminJob"), new List<PatchOperation>
+            await ExecuteWithThrottleRetryAsync(() => _container.PatchItemAsync<AdminJob>(jobId, new PartitionKey("AdminJob"), new List<PatchOperation>
             {
                 PatchOperation.Set("/TotalCount", total)
-            });
+            }));
         }
 
         public async Task IncrementProgressAsync(string jobId, bool success, string? errorMessage = null)
@@ -156,7 +156,7 @@ namespace DelegationStation.Services
             {
                 patchOperations.Add(PatchOperation.Set("/LastErrorMessage", errorMessage));
             }
-            await _container.PatchItemAsync<AdminJob>(jobId, new PartitionKey("AdminJob"), patchOperations);
+            await ExecuteWithThrottleRetryAsync(() => _container.PatchItemAsync<AdminJob>(jobId, new PartitionKey("AdminJob"), patchOperations));
         }
 
         public async Task MarkJobTerminalAsync(string jobId, AdminJobStatus status, string? errorMessage = null)
@@ -170,7 +170,29 @@ namespace DelegationStation.Services
             {
                 patchOperations.Add(PatchOperation.Set("/LastErrorMessage", errorMessage));
             }
-            await _container.PatchItemAsync<AdminJob>(jobId, new PartitionKey("AdminJob"), patchOperations);
+            await ExecuteWithThrottleRetryAsync(() => _container.PatchItemAsync<AdminJob>(jobId, new PartitionKey("AdminJob"), patchOperations));
+        }
+
+        // 429 (throttling) is retried with backoff, same reasoning as DeviceDBService.TryReplaceDeviceTagAsync -
+        // these progress-tracking patches run under the same concurrent load as the device migrations
+        // themselves, and a throttled progress update shouldn't be able to fault the whole job.
+        private async Task ExecuteWithThrottleRetryAsync(Func<Task> operation)
+        {
+            const int maxThrottleRetries = 5;
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    await operation();
+                    return;
+                }
+                catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests && attempt < maxThrottleRetries)
+                {
+                    TimeSpan delay = ex.RetryAfter ?? TimeSpan.FromSeconds(Math.Pow(2, attempt + 1));
+                    _logger.LogWarning("AdminJobDBService: throttled (attempt {Attempt}/{MaxAttempts}), retrying after {Delay}.", attempt + 1, maxThrottleRetries, delay);
+                    await Task.Delay(delay);
+                }
+            }
         }
     }
 }
