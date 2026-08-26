@@ -12,5 +12,11 @@ namespace DelegationStation.Interfaces
         Task<Device?> GetDeviceAsync(string make, string model, string serialNumber);
         Task<List<Device>> GetDevicesByTagAsync(string tagId);
         Task MarkDeviceToDeleteAsync(Device device);
+        /// <summary>
+        /// Replaces a device's Tags with a single new tag, conditioned on the device's ETag
+        /// (single-tag replace, matching this app's single-tag-per-device convention). Returns
+        /// false on an ETag mismatch (e.g. a concurrent edit) rather than throwing or retrying.
+        /// </summary>
+        Task<bool> TryReplaceDeviceTagAsync(Guid deviceId, string? ifMatchETag, string newTagId);
     }
 }

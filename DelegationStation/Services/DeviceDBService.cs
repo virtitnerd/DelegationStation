@@ -4,6 +4,7 @@ using DelegationStation.Interfaces;
 using DelegationStationShared.Enums;
 using DelegationStationShared.Models;
 using Microsoft.Azure.Cosmos;
+using System.Net;
 
 namespace DelegationStation.Services
 {
@@ -655,6 +656,31 @@ namespace DelegationStation.Services
             device.Status = DeviceStatus.Deleting;
             device.MarkedToDeleteUTC = DateTime.UtcNow;
             await this._container.UpsertItemAsync<Device>(device);
+        }
+
+        public async Task<bool> TryReplaceDeviceTagAsync(Guid deviceId, string? ifMatchETag, string newTagId)
+        {
+            List<PatchOperation> patchOperations = new List<PatchOperation>
+            {
+                PatchOperation.Replace("/Tags", new[] { newTagId }),
+                PatchOperation.Replace("/ModifiedUTC", DateTime.UtcNow)
+            };
+            PatchItemRequestOptions options = new PatchItemRequestOptions();
+            if (!string.IsNullOrEmpty(ifMatchETag))
+            {
+                options.IfMatchEtag = ifMatchETag;
+            }
+
+            try
+            {
+                await this._container.PatchItemAsync<Device>(deviceId.ToString(), new PartitionKey(deviceId.ToString()), patchOperations, options);
+                return true;
+            }
+            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
+            {
+                _logger.LogWarning($"TryReplaceDeviceTagAsync: ETag mismatch for device {deviceId}, skipping (likely a concurrent edit).");
+                return false;
+            }
         }
 
     }
