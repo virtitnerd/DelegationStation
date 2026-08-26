@@ -671,15 +671,28 @@ namespace DelegationStation.Services
                 options.IfMatchEtag = ifMatchETag;
             }
 
-            try
+            // 429 (throttling) is retried with backoff - it's transient, unlike a 412 ETag
+            // conflict which is a genuine collision and correctly not retried. Once retries are
+            // exhausted, the exception is left to propagate to the caller as a real failure.
+            const int maxThrottleRetries = 5;
+            for (int attempt = 0; ; attempt++)
             {
-                await this._container.PatchItemAsync<Device>(deviceId.ToString(), new PartitionKey(deviceId.ToString()), patchOperations, options);
-                return true;
-            }
-            catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
-            {
-                _logger.LogWarning($"TryReplaceDeviceTagAsync: ETag mismatch for device {deviceId}, skipping (likely a concurrent edit).");
-                return false;
+                try
+                {
+                    await this._container.PatchItemAsync<Device>(deviceId.ToString(), new PartitionKey(deviceId.ToString()), patchOperations, options);
+                    return true;
+                }
+                catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.PreconditionFailed)
+                {
+                    _logger.LogWarning($"TryReplaceDeviceTagAsync: ETag mismatch for device {deviceId}, skipping (likely a concurrent edit).");
+                    return false;
+                }
+                catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests && attempt < maxThrottleRetries)
+                {
+                    TimeSpan delay = ex.RetryAfter ?? TimeSpan.FromSeconds(Math.Pow(2, attempt + 1));
+                    _logger.LogWarning("TryReplaceDeviceTagAsync: throttled (attempt {Attempt}/{MaxAttempts}) for device {DeviceId}, retrying after {Delay}.", attempt + 1, maxThrottleRetries, deviceId, delay);
+                    await Task.Delay(delay);
+                }
             }
         }
 
