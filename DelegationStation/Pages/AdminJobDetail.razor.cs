@@ -28,10 +28,7 @@ namespace DelegationStation.Pages
             try
             {
                 job = await adminJobDBService.GetJobAsync(Id ?? "");
-                if (job == null)
-                {
-                    userMessage = "Job not found.";
-                }
+                userMessage = job == null ? "Job not found." : "";
             }
             catch (Exception ex)
             {
