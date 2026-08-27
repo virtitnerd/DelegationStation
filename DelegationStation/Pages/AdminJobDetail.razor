@@ -19,7 +19,7 @@
         @if (job != null)
         {
             <p><strong>Job Type:</strong> @job.JobType</p>
-            <p><strong>Status:</strong> @job.Status</p>
+            <p><strong>Status:</strong> <span class="badge rounded-pill @AdminJobStatusBadge.CssClass(job.Status)">@job.Status</span></p>
             <p><strong>Started By:</strong> @job.StartedByUserName</p>
             <p><strong>Created:</strong> @job.CreatedUTC.ToLocalTime()</p>
             @if (job.StartedUTC != null)
