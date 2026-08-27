@@ -125,7 +125,7 @@ namespace DelegationStation.Tests.Pages
         }
 
         [TestMethod]
-        public void TagConsolidationNew_SubmitWithoutPairs_ShowsValidationError()
+        public void TagConsolidationForm_SubmitWithoutPairs_ShowsValidationError()
         {
             using (ShimsContext.Create())
             {
@@ -134,7 +134,7 @@ namespace DelegationStation.Tests.Pages
                 Services.AddSingleton<IAdminJobDBService>(new FakeAdminJobDBService());
                 Services.AddSingleton<IDeviceTagDBService>(new FakeDeviceTagDBService { Tags = new List<DeviceTag> { new() { Id = Guid.NewGuid(), Name = "TagA" } } });
 
-                var cut = RenderComponent<TagConsolidationNew>();
+                var cut = RenderComponent<TagConsolidationForm>();
                 cut.Find("button.btn-primary").Click();
 
                 Assert.IsTrue(cut.Markup.Contains("At least one old-tag/new-tag pair is required"), $"Markup:\n{cut.Markup}");
@@ -142,7 +142,7 @@ namespace DelegationStation.Tests.Pages
         }
 
         [TestMethod]
-        public void TagConsolidationNew_SubmitWithSameOldAndNewTag_ShowsValidationError()
+        public void TagConsolidationForm_SubmitWithSameOldAndNewTag_ShowsValidationError()
         {
             using (ShimsContext.Create())
             {
@@ -152,7 +152,7 @@ namespace DelegationStation.Tests.Pages
                 Services.AddSingleton<IAdminJobDBService>(new FakeAdminJobDBService());
                 Services.AddSingleton<IDeviceTagDBService>(new FakeDeviceTagDBService { Tags = new List<DeviceTag> { new() { Id = tagId, Name = "TagA" } } });
 
-                var cut = RenderComponent<TagConsolidationNew>();
+                var cut = RenderComponent<TagConsolidationForm>();
                 var selects = cut.FindAll("select");
                 selects[0].Change(tagId.ToString());
                 selects[1].Change(tagId.ToString());
@@ -186,6 +186,29 @@ namespace DelegationStation.Tests.Pages
                 Assert.IsTrue(cut.Markup.Contains("TagConsolidation"), $"Markup:\n{cut.Markup}");
                 Assert.IsTrue(cut.Markup.Contains("4 / 10"), $"Markup:\n{cut.Markup}");
                 Assert.IsTrue(cut.Markup.Contains("3 succeeded, 1 failed"), $"Markup:\n{cut.Markup}");
+            }
+        }
+
+        [TestMethod]
+        public void AdminOperations_MenuSwitchesToTagConsolidation()
+        {
+            using (ShimsContext.Create())
+            {
+                Guid defaultId = Guid.NewGuid();
+                SetupCommonServices(defaultId, asAdmin: true);
+                Services.AddSingleton<IAdminJobDBService>(new FakeAdminJobDBService());
+                Services.AddSingleton<IDeviceTagDBService>(new FakeDeviceTagDBService());
+
+                var cut = RenderComponent<AdminOperations>();
+
+                // Job History is the default section
+                Assert.IsTrue(cut.Markup.Contains("No admin jobs have been run yet"), $"Markup:\n{cut.Markup}");
+                Assert.IsFalse(cut.Markup.Contains("New Tag Consolidation"), $"Markup:\n{cut.Markup}");
+
+                // Switch to Tag Consolidation via the sidebar menu - content swaps in place, no navigation
+                cut.FindAll("button.list-group-item").First(b => b.TextContent.Trim() == "Tag Consolidation").Click();
+
+                Assert.IsTrue(cut.Markup.Contains("New Tag Consolidation"), $"Markup:\n{cut.Markup}");
             }
         }
     }
