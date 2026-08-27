@@ -4,7 +4,13 @@ using Microsoft.AspNetCore.Components.Authorization;
 
 namespace DelegationStation.Pages
 {
-    public partial class AdminJobs
+    public enum AdminSection
+    {
+        JobHistory,
+        TagConsolidation
+    }
+
+    public partial class AdminOperations
     {
         [CascadingParameter]
         public Task<AuthenticationState>? AuthState { get; set; }
@@ -13,6 +19,12 @@ namespace DelegationStation.Pages
         private List<AdminJob> jobs = new List<AdminJob>();
         private bool loading = true;
         private string userMessage = "";
+        private AdminSection selectedSection = AdminSection.JobHistory;
+
+        private void SelectSection(AdminSection section)
+        {
+            selectedSection = section;
+        }
 
         protected override async Task OnInitializedAsync()
         {

@@ -1,0 +1,82 @@
+@page "/AdminOperations"
+@using DelegationStationShared.Enums
+@using DelegationStation.Interfaces
+
+@inject IAdminJobDBService adminJobDBService
+@inject NavigationManager nav
+@inject ILogger<AdminOperations> logger
+
+@attribute [Authorize]
+
+<h3>Admin Operations</h3>
+
+<AuthorizeView Policy="DelegationStationAdmin">
+    <Authorized>
+
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="list-group">
+                    <button type="button" class="list-group-item list-group-item-action @(selectedSection == AdminSection.JobHistory ? "active" : "")" @onclick="@(() => SelectSection(AdminSection.JobHistory))">Job History</button>
+                    <button type="button" class="list-group-item list-group-item-action @(selectedSection == AdminSection.TagConsolidation ? "active" : "")" @onclick="@(() => SelectSection(AdminSection.TagConsolidation))">Tag Consolidation</button>
+                </div>
+            </div>
+            <div class="col-md-9">
+
+                @if (!string.IsNullOrEmpty(userMessage))
+                {
+                    <div class="alert alert-danger" role="alert">@userMessage</div>
+                }
+
+                @if (selectedSection == AdminSection.JobHistory)
+                {
+                    <button type="button" class="btn btn-outline-secondary mb-3" @onclick=RefreshAsync>Refresh</button>
+
+                    @if (loading)
+                    {
+                        <p>Loading...</p>
+                    }
+                    else if (jobs.Count == 0)
+                    {
+                        <p>No admin jobs have been run yet.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Job Type</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                    <th>Started By</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var job in jobs)
+                                {
+                                    <tr class="clickable" @onclick=@(() => nav.NavigateTo($"/AdminOperations/Jobs/{job.Id}"))>
+                                        <td>@job.JobType</td>
+                                        <td>@job.Status</td>
+                                        <td>@job.ProcessedCount / @job.TotalCount (@job.SuccessCount ok, @job.FailureCount failed)</td>
+                                        <td>@job.StartedByUserName</td>
+                                        <td>@job.CreatedUTC.ToLocalTime()</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                }
+                else if (selectedSection == AdminSection.TagConsolidation)
+                {
+                    <TagConsolidationForm />
+                }
+
+            </div>
+        </div>
+
+    </Authorized>
+    <NotAuthorized>
+        <h3>Not Authorized</h3>
+        <p>User is unable to view or run admin operations.</p>
+    </NotAuthorized>
+</AuthorizeView>
