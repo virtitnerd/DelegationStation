@@ -56,7 +56,7 @@
                                 {
                                     <tr class="clickable" @onclick=@(() => nav.NavigateTo($"/AdminOperations/Jobs/{job.Id}"))>
                                         <td>@job.JobType</td>
-                                        <td>@job.Status</td>
+                                        <td><span class="badge rounded-pill @AdminJobStatusBadge.CssClass(job.Status)">@job.Status</span></td>
                                         <td>@job.ProcessedCount / @job.TotalCount (@job.SuccessCount ok, @job.FailureCount failed)</td>
                                         <td>@job.StartedByUserName</td>
                                         <td>@job.CreatedUTC.ToLocalTime()</td>
