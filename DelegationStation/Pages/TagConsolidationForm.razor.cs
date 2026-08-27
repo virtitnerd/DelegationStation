@@ -12,7 +12,7 @@ namespace DelegationStation.Pages
         public string NewTagId { get; set; } = "";
     }
 
-    public partial class TagConsolidationNew
+    public partial class TagConsolidationForm
     {
         [CascadingParameter]
         public Task<AuthenticationState>? AuthState { get; set; }
@@ -132,7 +132,7 @@ namespace DelegationStation.Pages
                 AdminJob job = await adminJobDBService.CreateJobAsync("TagConsolidation", parametersJson, userId, userName);
                 logger.LogInformation("Created TagConsolidation AdminJob {JobId} with {PairCount} pair(s). User: {UserName} {UserId}", job.Id, parameters.Pairs.Count, userName, userId);
 
-                nav.NavigateTo($"/AdminJobs/{job.Id}");
+                nav.NavigateTo($"/AdminOperations/Jobs/{job.Id}");
             }
             catch (Exception ex)
             {
