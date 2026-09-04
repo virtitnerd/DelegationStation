@@ -1,5 +1,4 @@
-﻿using Azure.Identity;
-using CorporateIdentifierSync.Interfaces;
+﻿using CorporateIdentifierSync.Interfaces;
 using DelegationStationShared;
 using DelegationStationShared.Extensions;
 using Microsoft.Extensions.Configuration;
@@ -7,7 +6,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
-using System.Security.Cryptography.X509Certificates;
 
 
 namespace CorporateIdentifierSync.Services
@@ -30,65 +28,42 @@ namespace CorporateIdentifierSync.Services
             var azureCloud = configuration.GetSection("AzureEnvironment").Value;
             var graphEndpoint = configuration.GetSection("GraphEndpoint").Value;
 
-            var options = new TokenCredentialOptions
-            {
-                AuthorityHost = azureCloud == "AzurePublicCloud" ? AzureAuthorityHosts.AzurePublicCloud : AzureAuthorityHosts.AzureGovernment
-            };
-
             var scopes = new string[] { $"{graphEndpoint}.default" };
             string baseUrl = graphEndpoint + "v1.0";
 
             if (_env.IsDevelopment())
             {
                 var certDN = configuration.GetSection("AzureAd:ClientCertificates:CertificateDistinguishedName").Value;
-
                 if (!String.IsNullOrEmpty(certDN))
                 {
                     _logger.DSLogInformation("Using certificate authentication: ", fullMethodName);
                     _logger.DSLogDebug("AzureCloud: " + azureCloud, fullMethodName);
                     _logger.DSLogDebug("GraphEndpoint: " + graphEndpoint, fullMethodName);
-
-                    X509Store store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
-                    store.Open(OpenFlags.ReadOnly);
                     _logger.DSLogInformation("Using certificate with Subject Name {0} for Graph service: " + certDN, fullMethodName);
-                    var certificate = store.Certificates.Cast<X509Certificate2>().FirstOrDefault(cert => cert.Subject.ToString() == certDN);
-
-                    var clientCertCredential = new ClientCertificateCredential(
-                        configuration.GetSection("AzureAd:TenantId").Value,
-                        configuration.GetSection("AzureAd:ClientId").Value,
-                        certificate,
-                        options
-                    );
-                    store.Close();
-                    this._graphClient = new GraphServiceClient(clientCertCredential, scopes, baseUrl);
                 }
                 else
                 {
                     _logger.DSLogInformation("Using Client Secret for Graph service", fullMethodName);
                     _logger.DSLogDebug("AzureCloud: " + azureCloud, fullMethodName);
                     _logger.DSLogDebug("GraphEndpoint: " + graphEndpoint, fullMethodName);
-
-
-                    var clientSecretCredential = new ClientSecretCredential(
-                        configuration.GetSection("AzureAd:TenantId").Value,
-                        configuration.GetSection("AzureAd:ClientId").Value,
-                        configuration.GetSection("AzureApp:ClientSecret").Value,
-                        options
-                    );
-
-                    this._graphClient = new GraphServiceClient(clientSecretCredential, scopes, baseUrl);
                 }
             }
-            else // Use Managed identity in Azure
+            else
             {
                 _logger.LogInformation("Using Managed Identity to authenticate to Graph service");
                 _logger.LogDebug("AzureCloud: " + azureCloud);
                 _logger.LogDebug("GraphEndpoint: " + graphEndpoint);
-
-                ManagedIdentityCredential managedIdentityCredential = new ManagedIdentityCredential(options: options);
-                this._graphClient = new GraphServiceClient(managedIdentityCredential, scopes, baseUrl);
             }
 
+            var credential = GraphCredentialFactory.Create(
+                _env,
+                azureCloud,
+                configuration.GetSection("AzureAd:TenantId").Value,
+                configuration.GetSection("AzureAd:ClientId").Value,
+                configuration.GetSection("AzureAd:ClientCertificates:CertificateDistinguishedName").Value,
+                configuration.GetSection("AzureApp:ClientSecret").Value
+            );
+            this._graphClient = new GraphServiceClient(credential, scopes, baseUrl);
         }
 
 
