@@ -19,7 +19,7 @@ namespace DelegationStation.Tests.Pages
     /// the Enterprise-only shim-generation limitation.
     /// </summary>
     [TestClass]
-    public class AdminOperationsTests : Bunit.TestContext
+    public class AdminOperationsTests : BunitTestContext
     {
         private class FakeAdminJobDBService : IAdminJobDBService
         {
@@ -52,7 +52,7 @@ namespace DelegationStation.Tests.Pages
 
         private void SetupCommonServices(Guid defaultAdminGroupId, bool asAdmin, Dictionary<string, string?>? extraConfig = null)
         {
-            var authContext = this.AddTestAuthorization();
+            var authContext = this.AddAuthorization();
             authContext.SetAuthorized("TEST USER");
             authContext.SetClaims(
                 new Claim("name", "TEST USER"),
@@ -90,7 +90,7 @@ namespace DelegationStation.Tests.Pages
                 Guid defaultId = Guid.NewGuid();
                 SetupCommonServices(defaultId, asAdmin: true, new Dictionary<string, string?> { { "EnableAdminOperations", "true" } });
 
-                var cut = RenderComponent<NavMenu>();
+                var cut = Render<NavMenu>();
 
                 Assert.IsTrue(cut.Markup.Contains("Admin Operations"), $"Markup:\n{cut.Markup}");
             }
@@ -104,7 +104,7 @@ namespace DelegationStation.Tests.Pages
                 Guid defaultId = Guid.NewGuid();
                 SetupCommonServices(defaultId, asAdmin: false, new Dictionary<string, string?> { { "EnableAdminOperations", "true" } });
 
-                var cut = RenderComponent<NavMenu>();
+                var cut = Render<NavMenu>();
 
                 Assert.IsFalse(cut.Markup.Contains("Admin Operations"), $"Markup:\n{cut.Markup}");
             }
@@ -118,7 +118,7 @@ namespace DelegationStation.Tests.Pages
                 Guid defaultId = Guid.NewGuid();
                 SetupCommonServices(defaultId, asAdmin: true, new Dictionary<string, string?> { { "EnableAdminOperations", "false" } });
 
-                var cut = RenderComponent<NavMenu>();
+                var cut = Render<NavMenu>();
 
                 Assert.IsFalse(cut.Markup.Contains("Admin Operations"), $"Markup:\n{cut.Markup}");
             }
@@ -134,7 +134,7 @@ namespace DelegationStation.Tests.Pages
                 Services.AddSingleton<IAdminJobDBService>(new FakeAdminJobDBService());
                 Services.AddSingleton<IDeviceTagDBService>(new FakeDeviceTagDBService { Tags = new List<DeviceTag> { new() { Id = Guid.NewGuid(), Name = "TagA" } } });
 
-                var cut = RenderComponent<TagConsolidationForm>();
+                var cut = Render<TagConsolidationForm>();
                 cut.Find("button.btn-primary").Click();
 
                 Assert.IsTrue(cut.Markup.Contains("At least one old-tag/new-tag pair is required"), $"Markup:\n{cut.Markup}");
@@ -152,7 +152,7 @@ namespace DelegationStation.Tests.Pages
                 Services.AddSingleton<IAdminJobDBService>(new FakeAdminJobDBService());
                 Services.AddSingleton<IDeviceTagDBService>(new FakeDeviceTagDBService { Tags = new List<DeviceTag> { new() { Id = tagId, Name = "TagA" } } });
 
-                var cut = RenderComponent<TagConsolidationForm>();
+                var cut = Render<TagConsolidationForm>();
                 var selects = cut.FindAll("select");
                 selects[0].Change(tagId.ToString());
                 selects[1].Change(tagId.ToString());
@@ -181,7 +181,7 @@ namespace DelegationStation.Tests.Pages
                 };
                 Services.AddSingleton<IAdminJobDBService>(new FakeAdminJobDBService { JobToReturn = job });
 
-                var cut = RenderComponent<AdminJobDetail>(parameters => parameters.Add(p => p.Id, job.Id.ToString()));
+                var cut = Render<AdminJobDetail>(parameters => parameters.Add(p => p.Id, job.Id.ToString()));
 
                 Assert.IsTrue(cut.Markup.Contains("TagConsolidation"), $"Markup:\n{cut.Markup}");
                 Assert.IsTrue(cut.Markup.Contains("4 / 10"), $"Markup:\n{cut.Markup}");
@@ -199,7 +199,7 @@ namespace DelegationStation.Tests.Pages
                 Services.AddSingleton<IAdminJobDBService>(new FakeAdminJobDBService());
                 Services.AddSingleton<IDeviceTagDBService>(new FakeDeviceTagDBService());
 
-                var cut = RenderComponent<AdminOperations>();
+                var cut = Render<AdminOperations>();
 
                 // Job History is the default section
                 Assert.IsTrue(cut.Markup.Contains("No admin jobs have been run yet"), $"Markup:\n{cut.Markup}");
