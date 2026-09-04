@@ -16,7 +16,7 @@ namespace DelegationStation.Tests.Pages
     /// view access to.
     /// </summary>
     [TestClass]
-    public class DevicesDeleteDeviceTests : Bunit.TestContext
+    public class DevicesDeleteDeviceTests : BunitTestContext
     {
         private sealed class AlwaysAllowAuthorizationService : IAuthorizationService
         {
@@ -45,7 +45,7 @@ namespace DelegationStation.Tests.Pages
         {
             string defaultAdminGroupId = Guid.NewGuid().ToString();
 
-            var authContext = this.AddTestAuthorization();
+            var authContext = this.AddAuthorization();
             authContext.SetAuthorized("TEST USER");
             authContext.SetClaims(
                 new Claim("name", "TEST USER"),
@@ -84,11 +84,11 @@ namespace DelegationStation.Tests.Pages
             Services.AddSingleton<IConfiguration>(config);
             // Override bUnit's fake IAuthorizationService: the resource-based
             // DeviceTagOperations.Delete check inside DeleteDevice isn't satisfied by
-            // AddTestAuthorization() alone (that only covers page-level [Authorize]/<AuthorizeView>).
+            // AddAuthorization() alone (that only covers page-level [Authorize]/<AuthorizeView>).
             Services.AddSingleton(authorizationService);
 
             wasDeleteCalled = () => deleteCalled;
-            return RenderComponent<Devices>();
+            return Render<Devices>();
         }
 
         private static void ClickDeleteThenConfirm(IRenderedComponent<Devices> cut)
