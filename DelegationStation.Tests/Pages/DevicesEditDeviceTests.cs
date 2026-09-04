@@ -16,7 +16,7 @@ namespace DelegationStation.Tests.Pages
     /// than silently succeeding.
     /// </summary>
     [TestClass]
-    public class DevicesEditDeviceTests : Bunit.TestContext
+    public class DevicesEditDeviceTests : BunitTestContext
     {
         // Succeeds only for DeviceTag resources whose Id is in the allowed set; fails everything else,
         // so tests can distinguish "denied on old tag" from "denied on new tag" rather than a blanket allow/deny.
@@ -53,7 +53,7 @@ namespace DelegationStation.Tests.Pages
         {
             string defaultAdminGroupId = Guid.NewGuid().ToString();
 
-            var authContext = this.AddTestAuthorization();
+            var authContext = this.AddAuthorization();
             authContext.SetAuthorized("TEST USER");
             authContext.SetClaims(
                 new Claim("name", "TEST USER"),
@@ -97,11 +97,11 @@ namespace DelegationStation.Tests.Pages
             Services.AddSingleton<IConfiguration>(config);
             // Override bUnit's fake IAuthorizationService: the resource-based
             // DeviceTagOperations.Read check inside SaveEditDevice isn't satisfied by
-            // AddTestAuthorization() alone (that only covers page-level [Authorize]/<AuthorizeView>).
+            // AddAuthorization() alone (that only covers page-level [Authorize]/<AuthorizeView>).
             Services.AddSingleton(authorizationService);
 
             updatedDevice = () => capturedDevice;
-            return RenderComponent<Devices>();
+            return Render<Devices>();
         }
 
         private static void ClickEdit(IRenderedComponent<Devices> cut)
