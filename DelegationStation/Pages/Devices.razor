@@ -262,7 +262,7 @@
                             </div>
                             <div class="mb-3">
                                 <label for="PreferredHostname" class="form-label">Preferred Hostname</label>
-                                <InputText @bind-Value=newDevice.PreferredHostname class="form-control" id="PreferredHostname"></InputText>
+                                <InputText @bind-Value=newDevice.PreferredHostname class="form-control" id="PreferredHostname" maxlength="15"></InputText>
                                 <ValidationMessage For=@(() => newDevice.PreferredHostname) />
                             </div>
                             <div class="mb-3">
