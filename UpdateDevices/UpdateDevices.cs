@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using System.Linq;
 using UpdateDevices.Models;
 using System.Text.RegularExpressions;
 using DelegationStationShared.Models;

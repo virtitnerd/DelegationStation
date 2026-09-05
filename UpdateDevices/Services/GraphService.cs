@@ -7,11 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using System.Security.Cryptography.X509Certificates;
-using System.Threading.Tasks;
 using DelegationStationShared.Models;
-using System.Collections.Generic;
-using System;
-using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Hosting;
 
