@@ -58,7 +58,7 @@ namespace UpdateDevices.Services
           if (!String.IsNullOrEmpty(cosmosEndpoint))
           {
             _logger.DSLogInformation("Using Managed Identity to connect to CosmosDB", fullMethodName);
-            TokenCredential credential = new ManagedIdentityCredential();
+            TokenCredential credential = new ManagedIdentityCredential(ManagedIdentityId.SystemAssigned);
             _cosmosClient = new CosmosClient(cosmosEndpoint, credential);
           }
           else
