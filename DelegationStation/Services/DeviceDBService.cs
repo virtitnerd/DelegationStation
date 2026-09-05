@@ -4,6 +4,7 @@ using DelegationStation.Interfaces;
 using DelegationStationShared.Enums;
 using DelegationStationShared.Models;
 using Microsoft.Azure.Cosmos;
+using System.Net;
 
 namespace DelegationStation.Services
 {
@@ -512,8 +513,30 @@ namespace DelegationStation.Services
 
 
 
-            ItemResponse<Device> response = await this._container.UpsertItemAsync<Device>(device);
-            return response;
+            return await UpsertDeviceWithThrottleRetryAsync(device);
+        }
+
+        /// <summary>
+        /// Upserts a device, retrying with backoff on Cosmos 429 (throttling) since it's
+        /// transient - unlike a genuine validation failure, it shouldn't surface as a hard
+        /// failure to an interactive admin clicking Add/Delete/Modify.
+        /// </summary>
+        private async Task<Device> UpsertDeviceWithThrottleRetryAsync(Device device)
+        {
+            const int maxThrottleRetries = 5;
+            for (int attempt = 0; ; attempt++)
+            {
+                try
+                {
+                    return await this._container.UpsertItemAsync<Device>(device);
+                }
+                catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests && attempt < maxThrottleRetries)
+                {
+                    TimeSpan delay = ex.RetryAfter ?? TimeSpan.FromSeconds(Math.Pow(2, attempt + 1));
+                    _logger.LogWarning("UpsertDeviceWithThrottleRetryAsync: throttled (attempt {Attempt}/{MaxAttempts}) for device {DeviceId}, retrying after {Delay}.", attempt + 1, maxThrottleRetries, device.Id, delay);
+                    await Task.Delay(delay);
+                }
+            }
         }
 
         public async Task<Device> UpdateDeviceAsync(Device device)
@@ -543,8 +566,7 @@ namespace DelegationStation.Services
                 }
             }
 
-            ItemResponse<Device> response = await this._container.UpsertItemAsync<Device>(device);
-            return response;
+            return await UpsertDeviceWithThrottleRetryAsync(device);
         }
 
         public async Task<Device> GetDeviceAsync(string deviceId)
@@ -685,7 +707,7 @@ namespace DelegationStation.Services
         {
             device.Status = DeviceStatus.Deleting;
             device.MarkedToDeleteUTC = DateTime.UtcNow;
-            await this._container.UpsertItemAsync<Device>(device);
+            await UpsertDeviceWithThrottleRetryAsync(device);
         }
 
     }
