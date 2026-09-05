@@ -5,10 +5,6 @@ using DelegationStationShared.Extensions;
 using DelegationStationShared.Models;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using UpdateDevices.Interfaces;
 using UpdateDevices.Models;
 

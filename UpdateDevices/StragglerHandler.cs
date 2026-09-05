@@ -4,11 +4,7 @@ using DelegationStationShared.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using UpdateDevices.Interfaces;
 
 namespace UpdateDevices
