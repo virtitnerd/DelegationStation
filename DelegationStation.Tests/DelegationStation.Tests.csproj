@@ -16,20 +16,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="bunit" Version="2.9.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid" Version="10.0.3" />
-    <PackageReference Include="Microsoft.NET.Sdk.Razor" Version="3.1.32" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
-    <PackageReference Include="Microsoft.QualityTools.Testing.Fakes" Version="18.1.1" />
-    <PackageReference Include="MSTest.TestAdapter" Version="4.3.3" />
-    <PackageReference Include="MSTest.TestFramework" Version="4.3.3" />
-    <PackageReference Include="coverlet.collector" Version="10.0.1">
+    <PackageReference Include="bunit" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid" />
+    <PackageReference Include="Microsoft.NET.Sdk.Razor" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.QualityTools.Testing.Fakes" />
+    <PackageReference Include="MSTest.TestAdapter" />
+    <PackageReference Include="MSTest.TestFramework" />
+    <PackageReference Include="coverlet.collector">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
 
     <!-- Adding to resolve conflicting versions -->
-    <PackageReference Include="System.Security.Permissions" Version="10.0.3" />
+    <PackageReference Include="System.Security.Permissions" />
   </ItemGroup>
 
   <ItemGroup>
